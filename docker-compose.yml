@@ -3,9 +3,7 @@ version: '3.8'
 services:
   # Service untuk Backend FastAPI
   backend:
-    build:
-      context: .
-      dockerfile: backend.Dockerfile
+    image: dhimashadid/psiko-bot-backend:latest
     container_name: psikobot-backend
     restart: unless-stopped
     env_file:
@@ -19,9 +17,7 @@ services:
 
   # Service untuk Bot Telegram
   bot:
-    build:
-      context: .
-      dockerfile: bot.Dockerfile
+    image: dhimashadid/psiko-bot-bot:latest
     container_name: psikobot-telegram
     restart: unless-stopped
     env_file:
