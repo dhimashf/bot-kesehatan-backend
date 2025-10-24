@@ -14,8 +14,9 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Salin file requirements dan install dependensi ke dalam venv
-COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
+# Gunakan pip-sync untuk build yang konsisten, sama seperti backend.
+COPY requirements.in requirements.txt ./
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir pip-tools && pip-sync requirements.txt
 
 # Salin seluruh kode aplikasi
 COPY . .
