@@ -1,0 +1,20 @@
+# Abaikan file dan folder yang dihasilkan oleh Docker dan Git
+.dockerignore
+.git
+.gitignore
+
+# Abaikan file spesifik IDE dan sistem operasi
+.vscode/
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+.DS_Store
+
+# Abaikan environment virtual Python
+venv/
+*.venv/
+
+# Abaikan file environment lokal dan file readme
+.env
+README.md

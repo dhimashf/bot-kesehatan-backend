@@ -26,14 +26,23 @@ COPY . .
 FROM python:3.10-slim AS runtime
 WORKDIR /app
 
+# Buat group dan user non-root untuk menjalankan aplikasi, sama seperti backend
+RUN groupadd --system app && useradd --system --gid app app
+
 # Salin virtual environment yang sudah berisi dependensi dari tahap builder
 COPY --from=builder /opt/venv /opt/venv
 # Salin kode aplikasi dari tahap builder
 COPY --from=builder /app /app
 
+# Berikan kepemilikan direktori aplikasi kepada user non-root
+RUN chown -R app:app /app
+
 # Atur PATH untuk menggunakan Python dari venv dan tambahkan /app ke PYTHONPATH
 ENV PATH="/opt/venv/bin:$PATH"
 ENV PYTHONPATH=/app
+
+# Ganti ke user non-root
+USER app
 
 # Perintah untuk menjalankan skrip bot
 CMD ["python", "-m", "bot_tele.bot"]

@@ -12,6 +12,12 @@ services:
       - ./common/data:/app/common/data # Mount volume untuk data RAG (ChromaDB, PDF)
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     expose:
       - "8000" # Port internal, tidak diekspos ke host
 
@@ -25,7 +31,8 @@ services:
     volumes:
       - ./common/data:/app/common/data # Mount volume yang sama untuk data RAG
     depends_on:
-      - backend # Pastikan backend jalan dulu sebelum bot
+      backend:
+        condition: service_healthy # Tunggu sampai backend benar-benar siap
     networks:
       - app-network
 
@@ -39,7 +46,8 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy # Tunggu sampai backend benar-benar siap
     networks:
       - app-network
 

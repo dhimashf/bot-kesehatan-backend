@@ -19,7 +19,12 @@ class Settings:
     DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
     # JWT Configuration
-    SECRET_KEY = os.getenv("SECRET_KEY", "9a8f7a5e6d5c4b3a2e1f0d9c8b7a6e5d4c3b2a1f0e9d8c7b6a5d4c3b2a1f0e9d")
+    SECRET_KEY = os.getenv("SECRET_KEY")
+    if not SECRET_KEY:
+        raise ValueError(
+            "ERROR: SECRET_KEY environment variable is not set. "
+            "The application cannot start without it for security reasons."
+        )
     ALGORITHM = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

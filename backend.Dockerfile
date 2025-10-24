@@ -28,15 +28,28 @@ COPY . .
 FROM python:3.10-slim AS runtime
 WORKDIR /app
 
+# Buat group dan user non-root untuk menjalankan aplikasi
+RUN groupadd --system app && useradd --system --gid app app
+
+# Install curl untuk healthcheck
+RUN apt-get update && apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
+
 # Salin virtual environment yang sudah berisi dependensi dari tahap builder
 COPY --from=builder /opt/venv /opt/venv
 
 # Salin kode aplikasi dari tahap builder
 COPY --from=builder /app /app
 
+# Berikan kepemilikan direktori aplikasi kepada user non-root
+RUN chown -R app:app /app
+
 # Atur PATH untuk menggunakan Python dari venv dan tambahkan /app ke PYTHONPATH
 ENV PATH="/opt/venv/bin:$PATH"
 ENV PYTHONPATH=/app
+
+# Ganti ke user non-root
+USER app
 
 # Perintah untuk menjalankan aplikasi FastAPI dengan Uvicorn
 CMD ["uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "8000"]
