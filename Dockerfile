@@ -20,7 +20,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Salin file requirements dan install dependensi ke dalam venv
 COPY requirements.txt ./
-RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
 
 # Salin seluruh kode aplikasi ke dalam container
 COPY . .

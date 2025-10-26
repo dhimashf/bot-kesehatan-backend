@@ -324,6 +324,16 @@ class ProfilingService:
             cat = self.who5_category[3][1]
         return total, cat
 
+    def get_who5_category_from_total(self, total_score: int) -> str:
+        """Mendapatkan kategori WHO-5 dari total skor yang sudah dihitung."""
+        if total_score <= 11:
+            return self.who5_category[0][1]
+        elif total_score <= 13:
+            return self.who5_category[1][1]
+        elif total_score <= 15:
+            return self.who5_category[2][1]
+        return self.who5_category[3][1]
+
     # GAD-7
     def get_gad7_keyboard(self):
         return InlineKeyboardMarkup([
@@ -346,6 +356,24 @@ class ProfilingService:
         else:
             cat = self.gad7_category[3][1]
         return total, cat
+
+    def get_gad7_category_from_total(self, total_score: int) -> str:
+        """Mendapatkan kategori GAD-7 dari total skor yang sudah dihitung."""
+        if total_score <= 4:
+            return self.gad7_category[0][1]
+        elif total_score <= 9:
+            return self.gad7_category[1][1]
+        elif total_score <= 14:
+            return self.gad7_category[2][1]
+        return self.gad7_category[3][1]
+    
+    def get_k10_category_from_total(self, total_score: int) -> str:
+        """Mendapatkan kategori K10 dari total skor yang sudah dihitung."""
+        for lim, label in self.k10_category:
+            if total_score <= lim:
+                return label
+        return self.k10_category[-1][1]
+
 
     def get_biodata_fields(self):
         """Return list of biodata fields and prompts."""
@@ -425,6 +453,39 @@ class ProfilingService:
                 return label
         return self.mbi_category[scale][-1][1]
     # NAQ-R
+
+    def get_mbi_result_from_totals(self, health_result: dict) -> str:
+        """Mendapatkan ringkasan MBI dari total skor yang sudah ada."""
+        emosional_total = health_result.get('mbi_emosional_total', 0)
+        sinis_total = health_result.get('mbi_sinis_total', 0)
+        pencapaian_total = health_result.get('mbi_pencapaian_total', 0)
+        
+        emosional_cat = self.get_mbi_category('emosional', emosional_total)
+        sinis_cat = self.get_mbi_category('sinis', sinis_total)
+        pencapaian_cat = self.get_mbi_category('pencapaian', pencapaian_total)
+        
+        total_score = emosional_total + sinis_total + pencapaian_total
+        
+        return (
+            f"Kelelahan Emosional: {emosional_total} ({emosional_cat})\n"
+            f"Sikap Sinis: {sinis_total} ({sinis_cat})\n"
+            f"Pencapaian Pribadi: {pencapaian_total} ({pencapaian_cat})\n"
+            f"Total Skor: {total_score}"
+        )
+
+    def get_naqr_result_from_totals(self, health_result: dict) -> str:
+        """Mendapatkan ringkasan NAQ-R dari total skor yang sudah ada."""
+        pribadi = health_result.get('naqr_pribadi_total', 0)
+        pekerjaan = health_result.get('naqr_pekerjaan_total', 0)
+        intimidasi = health_result.get('naqr_intimidasi_total', 0)
+        total = pribadi + pekerjaan + intimidasi
+        return (
+            f"Perundungan Pribadi: {pribadi}\n"
+            f"Perundungan Pekerjaan: {pekerjaan}\n"
+            f"Intimidasi: {intimidasi}\n"
+            f"Total Skor: {total}"
+        )
+
     def get_naqr_keyboard(self):
         return InlineKeyboardMarkup([
             [InlineKeyboardButton(f"{label} ({score})", callback_data=str(score))] for label, score in self.naqr_options

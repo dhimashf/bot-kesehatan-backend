@@ -16,7 +16,7 @@ class RagService:
 
     def build_index(self, file_path: str):
         """Load kitab.pdf lalu simpan ke ChromaDB"""
-        paragraphs = kitab_loader.load_docx(file_path)
+        paragraphs = kitab_loader.load_pdf(file_path)
         if not paragraphs:
             return 0
 

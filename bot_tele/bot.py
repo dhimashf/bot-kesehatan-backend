@@ -1,19 +1,8 @@
-# State untuk setiap langkah biodata
-BIODATA_EMAIL, BIODATA_INISIAL, BIODATA_NOWA, BIODATA_USIA, BIODATA_JK, BIODATA_PENDIDIKAN, BIODATA_LAMA_BEKERJA, BIODATA_STATUS_PEGAWAI, BIODATA_JABATAN, BIODATA_JABATAN_LAIN, BIODATA_UNIT, BIODATA_PERKAWINAN, BIODATA_KEHAMILAN, BIODATA_JUMLAH_ANAK = range(100, 114)
-
-# Daftar state biodata secara berurutan, sesuai dengan BIODATA_FIELDS
-BIODATA_STATES_LIST = [
-    BIODATA_EMAIL, BIODATA_INISIAL, BIODATA_NOWA, BIODATA_USIA, BIODATA_JK, BIODATA_PENDIDIKAN,
-    BIODATA_LAMA_BEKERJA, BIODATA_STATUS_PEGAWAI, BIODATA_JABATAN, BIODATA_JABATAN_LAIN,
-    BIODATA_UNIT, BIODATA_PERKAWINAN, BIODATA_KEHAMILAN, BIODATA_JUMLAH_ANAK
-]
-# State untuk login & register
-ASK_ACCOUNT, AWAIT_LOGIN_EMAIL, REGISTER_EMAIL = range(115, 118)
-
 import logging
 import os
 import sys
 import httpx
+from enum import Enum, auto
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, BotCommand
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes, ConversationHandler, ExtBot, Defaults
 
@@ -22,6 +11,44 @@ from core.services.openrouter_service import openrouter_service
 from common.data.kitab_loader import kitab_loader
 from core.services.profiling_service import profiling_service
 from backend.services import web_auth_service, user_service
+
+# --- State Management with Enums ---
+# This makes the code more readable and less error-prone than using range().
+class State(Enum):
+    # Onboarding Flow
+    ASK_ACCOUNT = auto()
+    AWAIT_LOGIN_EMAIL = auto()
+    REGISTER_EMAIL = auto()
+    # Biodata Flow
+    BIODATA_EMAIL = auto()
+    BIODATA_INISIAL = auto()
+    BIODATA_NOWA = auto()
+    BIODATA_USIA = auto()
+    BIODATA_JK = auto()
+    BIODATA_PENDIDIKAN = auto()
+    BIODATA_LAMA_BEKERJA = auto()
+    BIODATA_STATUS_PEGAWAI = auto()
+    BIODATA_JABATAN = auto()
+    BIODATA_JABATAN_LAIN = auto()
+    BIODATA_UNIT = auto()
+    BIODATA_PERKAWINAN = auto()
+    BIODATA_KEHAMILAN = auto()
+    BIODATA_JUMLAH_ANAK = auto()
+    # Questionnaire Flow
+    WHO5 = auto()
+    GAD7 = auto()
+    MBI = auto()
+    NAQR = auto()
+    K10 = auto()
+
+# List of biodata states in order, used for transitions
+BIODATA_STATES_LIST = [
+    State.BIODATA_EMAIL, State.BIODATA_INISIAL, State.BIODATA_NOWA, State.BIODATA_USIA,
+    State.BIODATA_JK, State.BIODATA_PENDIDIKAN, State.BIODATA_LAMA_BEKERJA,
+    State.BIODATA_STATUS_PEGAWAI, State.BIODATA_JABATAN, State.BIODATA_JABATAN_LAIN,
+    State.BIODATA_UNIT, State.BIODATA_PERKAWINAN, State.BIODATA_KEHAMILAN,
+    State.BIODATA_JUMLAH_ANAK
+]
 
 # Set up logging
 logging.basicConfig(
@@ -32,18 +59,6 @@ logger = logging.getLogger(__name__)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.INFO)
 logging.getLogger("telegram").setLevel(logging.INFO)
-
-
-
-# Conversation states
-WHO5_Q1, WHO5_Q2, WHO5_Q3, WHO5_Q4, WHO5_Q5 = range(5)
-GAD7_Q1, GAD7_Q2, GAD7_Q3, GAD7_Q4, GAD7_Q5, GAD7_Q6, GAD7_Q7 = range(5, 12)
-MBI_Q1, MBI_Q2, MBI_Q3, MBI_Q4, MBI_Q5, MBI_Q6, MBI_Q7, MBI_Q8, MBI_Q9, MBI_Q10, MBI_Q11, MBI_Q12, MBI_Q13, MBI_Q14, MBI_Q15, MBI_Q16, MBI_Q17, MBI_Q18, MBI_Q19, MBI_Q20, MBI_Q21, MBI_Q22 = range(12, 34)
-NAQR_Q1, NAQR_Q2, NAQR_Q3, NAQR_Q4, NAQR_Q5, NAQR_Q6, NAQR_Q7, NAQR_Q8, NAQR_Q9, NAQR_Q10, NAQR_Q11, NAQR_Q12, NAQR_Q13, NAQR_Q14, NAQR_Q15, NAQR_Q16, NAQR_Q17, NAQR_Q18, NAQR_Q19, NAQR_Q20, NAQR_Q21, NAQR_Q22 = range(34, 56)
-K10_Q1, K10_Q2, K10_Q3, K10_Q4, K10_Q5, K10_Q6, K10_Q7, K10_Q8, K10_Q9, K10_Q10 = range(56, 66)
-
-# State untuk menampung handler kuesioner
-PROFILING_FLOW = 67
 
 from core.services.database import Database
 
@@ -97,7 +112,7 @@ class PsikoBot:
             "Untuk melanjutkan, silakan login atau daftar jika Anda belum memiliki akun.",
             reply_markup=reply_markup
         )
-        return ASK_ACCOUNT
+        return State.ASK_ACCOUNT
 
     async def ask_account_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         query = update.callback_query
@@ -105,13 +120,13 @@ class PsikoBot:
 
         if query.data == 'login':
             await query.edit_message_text("Baik, silakan masukkan email Anda untuk login:")
-            return AWAIT_LOGIN_EMAIL
+            return State.AWAIT_LOGIN_EMAIL
         elif query.data == 'register':
             await query.edit_message_text(
                 "Baik, mari kita mulai proses pendaftaran.\n\n"
                 "Silakan masukkan Email Anda:"
             )
-            return REGISTER_EMAIL
+            return State.REGISTER_EMAIL
 
     async def register_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handles new user registration by email."""
@@ -161,7 +176,8 @@ class PsikoBot:
         # Set profile di context.user_data
         profile = self.get_user_profile(context)
         profile['db_user_id'] = user['id']
-        profile['biodata'] = full_profile.get('biodata', {})
+        # Pastikan biodata selalu berupa dict, bukan None
+        profile['biodata'] = full_profile.get('biodata') or {}
         profile['biodata_completed'] = bool(full_profile.get('biodata'))
 
         health_results = full_profile.get('health_results')
@@ -208,23 +224,22 @@ class PsikoBot:
 
     async def biodata_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Mapping dari state ke informasi field
-        # Index 0 (email) dilewati karena sudah ditangani di register_handler
         state_map = {
-            BIODATA_EMAIL: (0, 'email'), # Meskipun email ditangani di register, ini untuk kelengkapan
-            BIODATA_INISIAL: (1, 'inisial'), # index 1
-            BIODATA_NOWA: (2, 'no_wa'),
-            BIODATA_USIA: (3, 'usia'),
-            BIODATA_JK: (4, 'jenis_kelamin'),
-            BIODATA_PENDIDIKAN: (5, 'pendidikan'),
-            BIODATA_LAMA_BEKERJA: (6, 'lama_bekerja'),
-            BIODATA_STATUS_PEGAWAI: (7, 'status_pegawai'),
-            BIODATA_JABATAN: (8, 'jabatan'),
-            BIODATA_JABATAN_LAIN: (9, 'jabatan_lain'),
-            BIODATA_UNIT: (10, 'unit_ruangan'),
-            BIODATA_PERKAWINAN: (11, 'status_perkawinan'),
-            BIODATA_KEHAMILAN: (12, 'status_kehamilan'),
-            BIODATA_JUMLAH_ANAK: (13, 'jumlah_anak'),
-        } # Note: some indices are skipped to match BIODATA_FIELDS
+            State.BIODATA_EMAIL: (0, 'email'),
+            State.BIODATA_INISIAL: (1, 'inisial'),
+            State.BIODATA_NOWA: (2, 'no_wa'),
+            State.BIODATA_USIA: (3, 'usia'),
+            State.BIODATA_JK: (4, 'jenis_kelamin'),
+            State.BIODATA_PENDIDIKAN: (5, 'pendidikan'),
+            State.BIODATA_LAMA_BEKERJA: (6, 'lama_bekerja'),
+            State.BIODATA_STATUS_PEGAWAI: (7, 'status_pegawai'),
+            State.BIODATA_JABATAN: (8, 'jabatan'),
+            State.BIODATA_JABATAN_LAIN: (9, 'jabatan_lain'),
+            State.BIODATA_UNIT: (10, 'unit_ruangan'),
+            State.BIODATA_PERKAWINAN: (11, 'status_perkawinan'),
+            State.BIODATA_KEHAMILAN: (12, 'status_kehamilan'),
+            State.BIODATA_JUMLAH_ANAK: (13, 'jumlah_anak'),
+        }
 
         current_state = context.user_data['state'] # State saat ini
         idx, field = state_map[current_state]
@@ -241,14 +256,16 @@ class PsikoBot:
         elif update.message:
             user_input = update.message.text.strip()
 
-        context.user_data['biodata'][field] = user_input
+        # Ambil profile dan pastikan 'biodata' di dalamnya ada
+        profile = self.get_user_profile(context)
+        profile['biodata'][field] = user_input
 
         next_idx = idx + 1
         
         # Skip 'jabatan_lain' jika tidak perlu
         if next_idx < len(profiling_service.BIODATA_FIELDS):
             next_field, _ = profiling_service.BIODATA_FIELDS[next_idx]
-            if next_field == 'jabatan_lain' and context.user_data['biodata'].get('jabatan') != 'Yang lain':
+            if next_field == 'jabatan_lain' and profile['biodata'].get('jabatan') != 'Yang lain':
                 next_idx += 1 # Langsung loncat ke pertanyaan setelahnya
 
         if next_idx >= len(profiling_service.BIODATA_FIELDS):
@@ -274,7 +291,7 @@ class PsikoBot:
     async def save_biodata(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = update.effective_user.id
         profile = self.get_user_profile(context)
-        biodata = context.user_data['biodata']
+        biodata = profile['biodata']
 
         # Hapus state dari user_data setelah selesai
         if 'state' in context.user_data:
@@ -346,14 +363,17 @@ class PsikoBot:
         keyboard = profiling_service.get_mbi_keyboard()
         current_message = update.message or update.callback_query.message
         await current_message.reply_text(question, reply_markup=keyboard, parse_mode='Markdown')
-        return MBI_Q1 + idx
+        context.user_data['current_question'] = {'text': profiling_service.mbi_questions[idx], 'options': profiling_service.mbi_options}
+
+        return State.MBI
 
     async def set_bot_commands(self, application: Application):
         """Mengatur daftar perintah yang akan muncul di menu bot."""
         commands = [
             BotCommand("start", "Mulai atau login ke akun Anda"),
+            BotCommand("profile", "Lihat biodata Anda"),
             BotCommand("kuesioner", "Isi ulang kuesioner perkembangan"),
-            BotCommand("profile", "Lihat ringkasan profil dan hasil"),
+            BotCommand("riwayatkuesioner", "Lihat riwayat hasil kuesioner"),
             BotCommand("logout", "Keluar dari sesi saat ini"),
             BotCommand("help", "Tampilkan pesan bantuan"),
             BotCommand("reset", "Reset profil sesi (tidak menghapus akun)"),
@@ -362,6 +382,15 @@ class PsikoBot:
 
     def __init__(self):
         logger.info("Initializing Psiko Bot...")
+        self.application = None
+        self.job_queue = None
+        self.initialized = False
+
+    def setup(self):
+        """Sets up the application, handlers, and job queue. Call this before run()."""
+        if self.initialized:
+            return
+
         # Tambahkan konfigurasi timeout untuk koneksi yang lebih stabil
         defaults = Defaults(
             parse_mode='Markdown'
@@ -375,10 +404,7 @@ class PsikoBot:
             .post_init(self.set_bot_commands)
             .build()
         )
-
-        logger.info("Telegram application created")
-        self._load_kitab_data()
-
+        
         # Perintah logout harus menjadi bagian dari handler agar bisa mengakhirinya
         logout_handler = CommandHandler("logout", self.logout_command)
         # Demikian pula dengan reset
@@ -390,26 +416,25 @@ class PsikoBot:
                 CommandHandler("kuesioner", self.kuesioner_command)
             ],
             states={
-                # --- GABUNGKAN SEMUA ALUR PROFILING AWAL (LOGIN, REGISTRASI, BIODATA) ---
-                # Dengan menggabungkan semua state ini, transisi dari login_handler ke state biodata menjadi valid.
+                # Onboarding states
+                State.ASK_ACCOUNT: [CallbackQueryHandler(self.ask_account_handler)],
+                State.REGISTER_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.register_handler)],
+                State.AWAIT_LOGIN_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.login_handler)],
+
+                # Biodata states (all handled by biodata_handler)
                 **{
-                    ASK_ACCOUNT: [CallbackQueryHandler(self.ask_account_handler)],
-                    REGISTER_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.register_handler)],
-                    AWAIT_LOGIN_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.login_handler)],
-                    **{state: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.biodata_handler), CallbackQueryHandler(self.biodata_handler)] for state in range(BIODATA_INISIAL, BIODATA_JUMLAH_ANAK + 1)}
+                    state: [
+                        MessageHandler(filters.TEXT & ~filters.COMMAND, self.biodata_handler),
+                        CallbackQueryHandler(self.biodata_handler)
+                    ] for state in BIODATA_STATES_LIST if state != State.BIODATA_EMAIL
                 },
 
-                # Handler untuk setiap kuesioner secara terpisah
-                **{state: [CallbackQueryHandler(self.who5_callback)] 
-                    for state in range(WHO5_Q1, WHO5_Q5 + 1)},
-                **{state: [CallbackQueryHandler(self.gad7_callback)] 
-                    for state in range(GAD7_Q1, GAD7_Q7 + 1)},
-                **{state: [CallbackQueryHandler(self.mbi_callback)] 
-                    for state in range(MBI_Q1, MBI_Q22 + 1)},
-                **{state: [CallbackQueryHandler(self.naqr_callback)] 
-                    for state in range(NAQR_Q1, NAQR_Q22 + 1)},
-                **{state: [CallbackQueryHandler(self.k10_callback)] 
-                    for state in range(K10_Q1, K10_Q10 + 1)},
+                # Questionnaire states (each handled by its own callback)
+                State.WHO5: [CallbackQueryHandler(self.who5_callback)],
+                State.GAD7: [CallbackQueryHandler(self.gad7_callback)],
+                State.MBI: [CallbackQueryHandler(self.mbi_callback)],
+                State.NAQR: [CallbackQueryHandler(self.naqr_callback)],
+                State.K10: [CallbackQueryHandler(self.k10_callback)],
             },
             fallbacks=[CommandHandler("cancel", self.cancel_profiling), logout_handler, reset_handler],
         )
@@ -417,37 +442,13 @@ class PsikoBot:
         self.application.add_handler(main_handler)
         self.application.add_handler(CommandHandler("help", self.help_command))
         self.application.add_handler(CommandHandler("profile", self.show_profile))
+        self.application.add_handler(CommandHandler("riwayatkuesioner", self.show_questionnaire_history))
         self.application.add_handler(reset_handler) # Tetap daftarkan di luar untuk akses global
         self.application.add_handler(logout_handler) # Tetap daftarkan di luar untuk akses global
         self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
-        self.initialized = True
+        self.initialized = True # Tandai bahwa setup sudah selesai
         logger.info("Psiko Bot initialized successfully")
     
-    def _load_kitab_data(self):
-        """Load kitab data dari PDF file dan build index di ChromaDB"""
-        try:
-            logger.info("Loading kitab data...")
-            # Path is relative to the project root where main.py is executed
-            kitab_path = os.path.join("common", "data", "kitab.pdf")
-            
-            loaded = False
-            abs_path = os.path.abspath(kitab_path)
-            logger.info(f"Trying path: {abs_path} (exists={os.path.exists(abs_path)})")
-            if os.path.exists(abs_path):
-                paragraphs = kitab_loader.load_pdf(abs_path)
-                if paragraphs:
-                    try:
-                        from core.services.rag_service import rag_service
-                        chunk_count = rag_service.build_index(abs_path)
-                        logger.info(f"Successfully built index with {chunk_count} chunks from: {abs_path}")
-                        loaded = True
-                    except ImportError as e:
-                        logger.warning(f"RAG service not available: {e}")
-                        loaded = True
-            if not loaded:
-                logger.warning(f"⚠ Tidak menemukan file kitab.pdf di path: {abs_path}")
-        except Exception as e:
-            logger.error(f"Error loading kitab data: {str(e)}")
     async def gad7_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle jawaban GAD-7 callback"""
         query = update.callback_query
@@ -455,8 +456,12 @@ class PsikoBot:
         score = int(query.data)
         profile = self.get_user_profile(context)
         profile["gad7_scores"].append(score)
+
         idx = len(profile["gad7_scores"])
-        await query.edit_message_text(f"✅ Jawaban Anda: {score}", parse_mode='Markdown')
+        # Tampilkan feedback yang lebih jelas
+        question_info = context.user_data.pop('current_question', {})
+        feedback_text = self.format_answer_feedback(question_info, score)
+        await query.edit_message_text(feedback_text, parse_mode='Markdown')
         if idx < 7:
             return await self.ask_gad7_question(update, context, idx)
         else:
@@ -470,8 +475,12 @@ class PsikoBot:
         score = int(query.data)
         profile = self.get_user_profile(context)
         profile["mbi_scores"].append(score)
+
         idx = len(profile["mbi_scores"])
-        await query.edit_message_text(f"✅ Jawaban Anda: {score}", parse_mode='Markdown')
+        # Tampilkan feedback yang lebih jelas
+        question_info = context.user_data.pop('current_question', {})
+        feedback_text = self.format_answer_feedback(question_info, score)
+        await query.edit_message_text(feedback_text, parse_mode='Markdown')
         if idx < 22:
             return await self.ask_mbi_question(update, context, idx)
         else:
@@ -501,8 +510,12 @@ class PsikoBot:
         score = int(query.data)
         profile = self.get_user_profile(context)
         profile["who5_scores"].append(score) # type: ignore
+
         idx = len(profile["who5_scores"])
-        await query.edit_message_text(f"✅ Jawaban Anda: {score}", parse_mode='Markdown')
+        # Tampilkan feedback yang lebih jelas
+        question_info = context.user_data.pop('current_question', {})
+        feedback_text = self.format_answer_feedback(question_info, score)
+        await query.edit_message_text(feedback_text, parse_mode='Markdown')
         if idx < len(profiling_service.who5_questions):
             # Lanjut ke pertanyaan berikutnya
             return await self.ask_who5_question(update, context, idx)
@@ -511,13 +524,28 @@ class PsikoBot:
             profile["gad7_scores"] = []
             return await self.ask_gad7_question(update, context, 0)
 
+    def format_answer_feedback(self, question_info: dict, score: int) -> str:
+        """Memformat teks feedback setelah user menjawab."""
+        question_text = question_info.get('text', 'Pertanyaan tidak ditemukan')
+        options = question_info.get('options', [])
+        
+        answer_label = ""
+        for label, opt_score in options:
+            if opt_score == score:
+                answer_label = label
+                break
+        
+        return f"{question_text}\n\n*Jawaban Anda:* {answer_label} ({score})"
+
     async def ask_gad7_question(self, update: Update, context: ContextTypes.DEFAULT_TYPE, idx: int):
         """Tampilkan pertanyaan GAD-7 ke user"""
         question = profiling_service.get_gad7_question(idx)
         keyboard = profiling_service.get_gad7_keyboard()
         current_message = update.message or update.callback_query.message
         await current_message.reply_text(question, reply_markup=keyboard, parse_mode='Markdown')
-        return GAD7_Q1 + idx
+        context.user_data['current_question'] = {'text': profiling_service.gad7_questions[idx], 'options': profiling_service.gad7_options}
+
+        return State.GAD7
 
     async def ask_who5_question(self, update: Update, context: ContextTypes.DEFAULT_TYPE, idx: int):
         """Tampilkan pertanyaan WHO-5 ke user"""
@@ -525,7 +553,9 @@ class PsikoBot:
         keyboard = profiling_service.get_who5_keyboard()
         current_message = update.message or update.callback_query.message
         await current_message.reply_text(question, reply_markup=keyboard, parse_mode='Markdown')
-        return WHO5_Q1 + idx
+        context.user_data['current_question'] = {'text': profiling_service.who5_questions[idx], 'options': profiling_service.who5_options}
+
+        return State.WHO5
 
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle incoming messages with user profile context"""
@@ -582,7 +612,9 @@ class PsikoBot:
         keyboard = profiling_service.get_naqr_keyboard()
         current_message = update.message or update.callback_query.message
         await current_message.reply_text(question, reply_markup=keyboard, parse_mode='Markdown')
-        return NAQR_Q1 + idx
+        context.user_data['current_question'] = {'text': profiling_service.naqr_questions[idx], 'options': profiling_service.naqr_options}
+
+        return State.NAQR
 
     async def naqr_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle jawaban NAQ-R callback"""
@@ -591,8 +623,12 @@ class PsikoBot:
         score = int(query.data)
         profile = self.get_user_profile(context)
         profile["naqr_scores"].append(score)
+
         idx = len(profile["naqr_scores"])
-        await query.edit_message_text(f"✅ Jawaban Anda: {score}", parse_mode='Markdown')
+        # Tampilkan feedback yang lebih jelas
+        question_info = context.user_data.pop('current_question', {})
+        feedback_text = self.format_answer_feedback(question_info, score)
+        await query.edit_message_text(feedback_text, parse_mode='Markdown')
         if idx < 22:
             # Lanjut ke pertanyaan berikutnya
             return await self.ask_naqr_question(update, context, idx)
@@ -607,7 +643,9 @@ class PsikoBot:
         keyboard = profiling_service.get_k10_keyboard()
         current_message = update.message or update.callback_query.message
         await current_message.reply_text(question, reply_markup=keyboard, parse_mode='Markdown')
-        return K10_Q1 + idx
+        context.user_data['current_question'] = {'text': profiling_service.k10_questions[idx], 'options': profiling_service.k10_options}
+
+        return State.K10
 
     async def k10_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle jawaban K10 callback"""
@@ -617,8 +655,12 @@ class PsikoBot:
         score = int(query.data)
         profile = self.get_user_profile(context)
         profile["k10_scores"].append(score)
+
         idx = len(profile["k10_scores"])
-        await query.edit_message_text(f"✅ Jawaban Anda: {score}", parse_mode='Markdown')
+        # Tampilkan feedback yang lebih jelas
+        question_info = context.user_data.pop('current_question', {})
+        feedback_text = self.format_answer_feedback(question_info, score)
+        await query.edit_message_text(feedback_text, parse_mode='Markdown')
         if idx < 10:
             # Lanjut ke pertanyaan berikutnya
             return await self.ask_k10_question(update, context, idx)
@@ -653,6 +695,8 @@ class PsikoBot:
             else:
                 logger.warning(f"Cannot save health results for user {user_id}, db_user_id not found.")
 
+            # Simpan hasil ke dalam profile untuk konsistensi dengan alur login
+            profile['health_results'] = [profiling_data]
 
             summary = (
                 f"✨ Survey Selesai!\n\n"
@@ -676,6 +720,44 @@ class PsikoBot:
             return ConversationHandler.END
     
     
+    def _format_profile_summary(self, profile: dict) -> str:
+        """Helper function to format the profile summary text."""
+        hr_list = profile.get("health_results", [])
+        if not hr_list or not isinstance(hr_list, list):
+            return "Data hasil kuesioner tidak ditemukan atau formatnya salah."
+        
+        # Buat string untuk setiap entri riwayat
+        history_texts = []
+        for i, hr in enumerate(hr_list):
+            total_who5 = hr.get('who5_total', 0)
+            category_who5 = profiling_service.get_who5_category_from_total(total_who5)
+            total_gad7 = hr.get('gad7_total', 0)
+            category_gad7 = profiling_service.get_gad7_category_from_total(total_gad7)
+            total_k10 = hr.get('k10_total', 0)
+            category_k10 = profiling_service.get_k10_category_from_total(total_k10)
+            
+            mbi_result = profiling_service.get_mbi_result_from_totals(hr)
+            naqr_result = profiling_service.get_naqr_result_from_totals(hr)
+            
+            # Ambil tanggal dari data, jika ada. Format agar lebih mudah dibaca.
+            created_at_str = hr.get('created_at', 'Tanggal tidak diketahui')
+            if isinstance(created_at_str, str) and len(created_at_str) > 10:
+                created_at_str = created_at_str[:10] # Ambil YYYY-MM-DD
+
+            entry_text = (
+                f" riwayat *{i+1}* (Tanggal: {created_at_str})\n"
+                f"----------------------------------\n"
+                f"*WHO-5 WELL-BEING INDEX*\nSkor: {total_who5} dari 30 | Kategori: *{category_who5}*\n\n"
+                f"*GAD-7 (Generalized Anxiety Disorder)*\nSkor: {total_gad7} dari 21 | Kategori: *{category_gad7}*\n\n"
+                f"*Maslach Burnout Inventory (MBI)*\n{mbi_result}\n\n"
+                f"*NAQ-R (Negative Acts Questionnaire-Revised)*\n{naqr_result}\n\n"
+                f"*Kessler (K10) Skala Gangguan Psikososial*\nSkor: {total_k10} dari 50 | Kategori: *{category_k10}*"
+            )
+            history_texts.append(entry_text)
+
+        return f" riwayat Kuesioner Anda\n\n" + "\n\n\n".join(history_texts)
+
+
     
     async def cancel_profiling(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Cancel profiling process"""
@@ -684,76 +766,44 @@ class PsikoBot:
     
     async def show_profile(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show WHO-5, GAD-7, MBI, NAQ-R & K10 profile"""
+        """Hanya menampilkan biodata pengguna."""
         profile = self.get_user_profile(context)
 
         if not profile.get("biodata_completed"):
-            await update.message.reply_text( # type: ignore
+            await update.message.reply_text(
                 "Anda belum mengisi biodata. Gunakan /start untuk memulai.",
                 parse_mode='Markdown'
             )
             return
 
+        biodata = profile.get('biodata', {})
+        if not biodata:
+            await update.message.reply_text("Data biodata tidak ditemukan. Silakan coba /start lagi.")
+            return
+
+        # Format biodata menjadi teks yang rapi
+        biodata_text_lines = []
+        for key, val in biodata.items():
+            # Format khusus untuk kunci tertentu, dan format umum untuk sisanya
+            formatted_key = key.replace('_', ' ').title()
+            biodata_text_lines.append(f"*{formatted_key}:* {val}")
+
+        profile_text = "👤 *BIODATA*\n\n" + "\n".join(biodata_text_lines)
+        await update.message.reply_text(profile_text, parse_mode='Markdown')
+
+    async def show_questionnaire_history(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Menampilkan riwayat hasil kuesioner pengguna."""
+        profile = self.get_user_profile(context)
+
         if not profile.get("completed"):
             await update.message.reply_text( # type: ignore
-                "Anda belum menyelesaikan profiling. Gunakan /start untuk memulai.",
+                "Anda belum menyelesaikan kuesioner. Gunakan /start untuk memulai.",
                 parse_mode='Markdown'
             )
             return
 
-        biodata_text = "\n".join([f"*{key.replace('_', ' ').title()}:* {val}" for key, val in profile.get('biodata', {}).items()]) # type: ignore
-
-        # Cek apakah data berasal dari login (health_results) atau sesi kuesioner
-        if profile.get("health_results"):
-            # Data dari login (DB)
-            # Ambil hasil terbaru dari daftar riwayat.
-            # `isinstance` check menangani kasus di mana data mungkin bukan list.
-            hr = profile["health_results"][0] if isinstance(profile["health_results"], list) and profile["health_results"] else profile["health_results"]
-            if not hr: # Jika hr kosong setelah pengecekan
-                return # Tidak bisa menampilkan profil
-            total_who5, category_who5 = profiling_service.get_who5_result([hr['who5_total']])
-            total_gad7, category_gad7 = profiling_service.get_gad7_result([hr['gad7_total']])
-            total_k10, category_k10 = profiling_service.get_k10_result([hr['k10_total']])
-            
-            # Untuk MBI dan NAQR, kita tidak punya skor mentah, hanya total
-            mbi_result = {
-                'emosional': (hr['mbi_emosional_total'], profiling_service.get_mbi_category('emosional', hr['mbi_emosional_total'])),
-                'sinis': (hr['mbi_sinis_total'], profiling_service.get_mbi_category('sinis', hr['mbi_sinis_total'])),
-                'pencapaian': (hr['mbi_pencapaian_total'], profiling_service.get_mbi_category('pencapaian', hr['mbi_pencapaian_total'])),
-                'total': (hr['mbi_emosional_total'] + hr['mbi_sinis_total'] + hr['mbi_pencapaian_total'], "N/A")
-            }
-            naqr_result = {
-                'pribadi': hr['naqr_pribadi_total'],
-                'pekerjaan': hr['naqr_pekerjaan_total'],
-                'intimidasi': hr['naqr_intimidasi_total'],
-                'total': hr['naqr_pribadi_total'] + hr['naqr_pekerjaan_total'] + hr['naqr_intimidasi_total']
-            }
-        else:
-            # Data dari sesi kuesioner saat ini
-            total_who5, category_who5 = profiling_service.get_who5_result(profile["who5_scores"])
-            total_gad7, category_gad7 = profiling_service.get_gad7_result(profile["gad7_scores"])
-            mbi_result = profiling_service.get_mbi_result(profile["mbi_scores"])
-            naqr_result = profiling_service.get_naqr_result(profile["naqr_scores"])
-            total_k10, category_k10 = profiling_service.get_k10_result(profile["k10_scores"])
-
-        profile_text = (
-            f"👤 Profil Anda\n\n"
-            f"*BIODATA*\n{biodata_text}\n\n"
-            f"*WHO-5 WELL-BEING INDEX*\nSkor: {total_who5} dari 30\nKategori: *{category_who5}*\n\n"
-            f"*GAD-7 (Generalized Anxiety Disorder)*\nSkor: {total_gad7} dari 21\nKategori: *{category_gad7}*\n\n"
-            f"*Maslach Burnout Inventory (MBI)*\n"
-            f"Kelelahan Emosional: {mbi_result['emosional'][0]} ({mbi_result['emosional'][1]})\n"
-            f"Sikap Sinis: {mbi_result['sinis'][0]} ({mbi_result['sinis'][1]})\n"
-            f"Pencapaian Pribadi: {mbi_result['pencapaian'][0]} ({mbi_result['pencapaian'][1]})\n"
-            f"Total Skor: {mbi_result['total'][0]} ({mbi_result['total'][1]})\n\n"
-            f"*NAQ-R (Negative Acts Questionnaire-Revised)*\n"
-            f"Perundungan Pribadi: {naqr_result['pribadi']}\n"
-            f"Perundungan Pekerjaan: {naqr_result['pekerjaan']}\n"
-            f"Intimidasi: {naqr_result['intimidasi']}\n"
-            f"Total Skor: {naqr_result['total']}\n\n"
-            f"*Kessler (K10) Skala Gangguan Psikososial*\nSkor: {total_k10} dari 50\nKategori: *{category_k10}*\n\n"
-            "Gunakan /reset untuk mengatur ulang profil."
-        )
-        await update.message.reply_text(profile_text, parse_mode='Markdown') # type: ignore
+        profile_text = self._format_profile_summary(profile)
+        await update.message.reply_text(profile_text, parse_mode='Markdown')
     
     async def reset_profile(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Reset user profile"""
@@ -792,27 +842,40 @@ class PsikoBot:
 
 Perintah yang tersedia: 
 • /start - Mulai & setup profil
-• /help - Tampilkan bantuan
-• /profile - Lihat profil Anda
+• /profile - Lihat biodata Anda
 • /kuesioner - Mengisi ulang kuesioner untuk melihat perkembangan
+• /riwayatkuesioner - Lihat riwayat hasil kuesioner
 • /logout - Keluar dari sesi saat ini
+• /reset - Reset profil sesi (tidak menghapus akun)
+• /help - Tampilkan pesan bantuan ini
 
 Cara penggunaan:
-Cukup ketik pertanyaan Psiko Anda, dan bot akan memberikan jawaban berdasarkan kitab referensi dengan mempertimbangkan profil Anda.
+Setelah profil Anda lengkap, cukup ketik pertanyaan Anda, dan bot akan memberikan jawaban berdasarkan referensi yang ada dengan mempertimbangkan profil Anda.
 
 Contoh pertanyaan:
 • Apa itu kesehatan mental ?
         """
         await update.message.reply_text(help_message, parse_mode='Markdown') # type: ignore
     
-    def run(self):
-        """Run the bot"""
+    async def run_polling(self):
+        """Runs the bot with polling in an async-friendly way."""
+        if not self.initialized:
+            self.setup() # Pastikan setup dijalankan jika belum
+
         logger.info("Starting Psiko Bot polling...")
-        
-        self.application.run_polling(
-            allowed_updates=Update.ALL_TYPES,
-            drop_pending_updates=True
+        await self.application.initialize() # type: ignore
+        await self.application.start() # type: ignore
+        await self.application.updater.start_polling( # type: ignore
+            allowed_updates=Update.ALL_TYPES, drop_pending_updates=True
         )
+
+    async def stop_polling(self):
+        """Stops the bot polling gracefully."""
+        if self.initialized and self.application and self.application.updater:
+            logger.info("Stopping Psiko Bot polling...")
+            await self.application.updater.stop() # type: ignore
+            await self.application.stop() # type: ignore
+            await self.application.shutdown() # type: ignore
 
 
 # Global instance
@@ -820,4 +883,3 @@ psikobot = PsikoBot()
 
 if __name__ == "__main__":
     psikobot.run()           
-    allowed_updates=Update.ALL_TYPES,
