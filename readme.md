@@ -29,9 +29,9 @@ Proyek ini dibagi menjadi beberapa komponen:
 - **`core/`:** Direktori ini berisi layanan inti aplikasi.
     - **`services/`:** Layanan inti untuk interaksi database, OpenRouter, profiling, dan RAG.
 - **Docker & Nginx:**
-    - **`backend.Dockerfile` & `bot.Dockerfile`:** Instruksi untuk membangun image container untuk backend dan bot.
-    - **`docker-compose.yml`:** Mengorkestrasi ketiga layanan (backend, bot, nginx) untuk berjalan bersama di produksi.
-    - **`nginx.conf`:** Konfigurasi Nginx sebagai *reverse proxy* untuk backend API.
+    - **`Dockerfile`:** Instruksi untuk membangun image container tunggal yang berisi backend dan bot.
+    - **`docker-compose.yml`:** Mengorkestrasi layanan aplikasi (`app`) dan `nginx` untuk berjalan bersama di produksi.
+    - **`nginx/nginx.conf`:** Konfigurasi Nginx sebagai *reverse proxy* untuk backend API.
 
 ## Persiapan
 
@@ -125,7 +125,7 @@ Proyek ini dibagi menjadi beberapa komponen:
       ```bash
       docker-compose up --build -d
       ```
-    Ini akan membangun dan menjalankan container untuk backend, bot, dan Nginx.
+    Ini akan membangun dan menjalankan container untuk aplikasi utama (backend + bot) dan Nginx.
 
 ## Dokumentasi API
 

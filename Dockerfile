@@ -1,11 +1,13 @@
+# Dockerfile Tunggal untuk Aplikasi PsikoBot (Backend + Bot)
+
 # ---- Builder Stage ----
 # Tahap ini digunakan untuk menginstal dependensi, termasuk yang memerlukan kompilasi.
-FROM python:3.10-slim AS builder
+FROM python:3.11-slim AS builder
 
 # Tetapkan direktori kerja di dalam container
 WORKDIR /app
 
-# Set variabel lingkungan
+# Set variabel lingkungan untuk Python
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
@@ -17,27 +19,25 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Salin file requirements dan install dependensi ke dalam venv
-COPY requirements.in requirements.txt ./
-RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir pip-tools && pip-sync requirements.txt
+COPY requirements.txt ./
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 # Salin seluruh kode aplikasi ke dalam container
 COPY . .
 
 # ---- Runtime Stage ----
 # Tahap ini adalah image akhir yang minimalis untuk produksi.
-FROM python:3.10-slim AS runtime
+FROM python:3.11-slim AS runtime
 WORKDIR /app
 
 # Buat group dan user non-root untuk menjalankan aplikasi
 RUN groupadd --system app && useradd --system --gid app app
 
 # Install curl untuk healthcheck
-RUN apt-get update && apt-get install -y --no-install-recommends curl && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
 # Salin virtual environment yang sudah berisi dependensi dari tahap builder
 COPY --from=builder /opt/venv /opt/venv
-
 # Salin kode aplikasi dari tahap builder
 COPY --from=builder /app /app
 
@@ -51,5 +51,5 @@ ENV PYTHONPATH=/app
 # Ganti ke user non-root
 USER app
 
-# Perintah untuk menjalankan aplikasi FastAPI dengan Uvicorn
-CMD ["uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Perintah untuk menjalankan aplikasi utama yang berisi backend dan bot
+CMD ["python", "main.py"]

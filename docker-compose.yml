@@ -1,10 +1,11 @@
 services:
-  # Service untuk Backend FastAPI
-  backend:
+  # Service Aplikasi Utama (Backend FastAPI + Bot Telegram)
+  app:
     build:
       context: .
-      dockerfile: backend.Dockerfile
-    container_name: psikobot-backend
+      dockerfile: Dockerfile # Menggunakan Dockerfile tunggal yang baru
+    image: dhimashadid/psiko-bot:latest # Menambahkan nama image untuk build dan push
+    container_name: psikobot-app
     restart: unless-stopped
     env_file:
       - .env # Menggunakan variabel dari file .env
@@ -12,31 +13,16 @@ services:
       - ./common/data:/app/common/data # Mount volume untuk data RAG (ChromaDB, PDF)
     networks:
       - app-network
+    # Healthcheck tetap diperlukan untuk memastikan backend FastAPI siap
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
+    # Port 8000 diekspos secara internal di dalam network
     expose:
-      - "8000" # Port internal, tidak diekspos ke host
-
-  # Service untuk Bot Telegram
-  bot:
-    build:
-      context: .
-      dockerfile: bot.Dockerfile
-    container_name: psikobot-telegram
-    restart: unless-stopped
-    env_file:
-      - .env
-    volumes:
-      - ./common/data:/app/common/data # Mount volume yang sama untuk data RAG
-    depends_on:
-      backend:
-        condition: service_healthy # Tunggu sampai backend benar-benar siap
-    networks:
-      - app-network
+      - "8000"
 
   # Service untuk Nginx Reverse Proxy
   nginx:
@@ -48,8 +34,8 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
     depends_on:
-      backend:
-        condition: service_healthy # Tunggu sampai backend benar-benar siap
+      app:
+        condition: service_healthy # Tunggu sampai service 'app' (backend) benar-benar siap
     networks:
       - app-network
 
