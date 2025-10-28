@@ -1,25 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from backend.api.v1.schemas.chat import ChatMessage
 from core.services.openrouter_service import openrouter_service
 from core.services.database import Database
-from backend.services import web_auth_service
+from backend.services.web_auth_service import get_user_full_profile_by_id, internal_token_dependency, get_db
 
 router = APIRouter()
 
-def get_db():
-    db = Database()
-    try:
-        yield db
-    finally:
-        pass
-
-@router.post("/")
-async def chat_with_bot(chat_message: ChatMessage, db: Database = Depends(get_db)):
+@router.post("/", dependencies=[Depends(internal_token_dependency)])
+async def chat_with_bot(
+    chat_message: ChatMessage, 
+    db: Database = Depends(get_db)
+):
     user_id = chat_message.user_id
 
     # 1. Get user profile using the consistent service
     # This now returns a dictionary with 'biodata' and 'health_results' keys
-    full_profile = web_auth_service.get_user_full_profile_by_id(user_id)
+    full_profile = get_user_full_profile_by_id(db, user_id)
     
     user_profile = full_profile # The service expects the full structure
     if not user_profile:

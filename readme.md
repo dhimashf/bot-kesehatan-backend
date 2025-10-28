@@ -1,132 +1,170 @@
-# Chatbot Psiko - Asisten Kesejahteraan Diri
+# Chatbot Psiko - Asisten Kesejahteraan Diri Berbasis AI
 
-Proyek ini adalah aplikasi asisten kesehatan mental yang komprehensif, menyediakan interaksi melalui bot Telegram dan antarmuka web. Backend dibangun dengan FastAPI dan dirancang untuk di-deploy menggunakan Docker, sementara frontend (berbasis Vanilla JS) dipisahkan untuk deployment mandiri (misalnya di Vercel).
+Proyek ini adalah sebuah platform asisten kesehatan mental komprehensif yang dapat diakses melalui **Bot Telegram** dan **Antarmuka Web**. Sistem ini dirancang untuk memberikan dukungan psikologis awal yang dipersonalisasi, menggunakan Large Language Model (LLM) yang diperkaya dengan profil psikometrik pengguna dan basis pengetahuan yang relevan.
 
-## Fitur
+## ✨ Fitur Utama
 
-- **Bot Telegram:** Berinteraksi dengan chatbot melalui bot Telegram.
-- **Antarmuka Web:** Menyediakan alur registrasi, pengisian biodata, serangkaian kuesioner kesehatan (WHO-5, GAD-7, MBI, NAQ-R, K10), dan halaman profil untuk melihat riwayat.
-- **Autentikasi Terpadu:** Pengguna dapat mendaftar dan login melalui antarmuka web atau bot Telegram, menggunakan akun yang sama di kedua platform.
-- **Penyimpanan Riwayat:** Semua hasil kuesioner dan profil pengguna disimpan dalam database MySQL.
-- **Layanan RAG:** Chatbot menggunakan *Retrieval-Augmented Generation* (RAG) untuk memberikan jawaban yang relevan berdasarkan basis pengetahuan (file PDF).
-- **Siap Produksi:** Dilengkapi dengan konfigurasi Docker, Docker Compose, dan Nginx untuk deployment yang tangguh di server (VPS).
+- **Interaksi Multi-Platform**: Pengguna dapat berinteraksi dengan sistem melalui Bot Telegram untuk kemudahan akses atau melalui Antarmuka Web untuk pengalaman yang lebih visual.
+- **Profil Psikometrik Komprehensif**: Sistem mengumpulkan data melalui lima kuesioner standar industri (WHO-5, GAD-7, MBI, NAQ-R, K10) untuk membangun profil kesehatan mental pengguna yang mendalam.
+- **Personalisasi Respons AI**: Inovasi inti dari proyek ini adalah kemampuan untuk menyuntikkan ringkasan profil psikometrik pengguna sebagai konteks ke dalam *system prompt* LLM. Hal ini membuat respons AI menjadi **adaptif** dan disesuaikan dengan kondisi spesifik pengguna.
+- **Retrieval-Augmented Generation (RAG)**: Jawaban dari chatbot didasarkan pada basis pengetahuan yang terkontrol (file `kitab.pdf`), memastikan relevansi, akurasi, dan keamanan informasi yang diberikan.
+- **Autentikasi Terpadu**: Satu akun pengguna dapat digunakan untuk login di kedua platform (Telegram dan Web), memberikan pengalaman yang mulus.
+- **Manajemen Riwayat**: Pengguna dapat melihat riwayat hasil kuesioner mereka dari waktu ke waktu melalui antarmuka web, memungkinkan pemantauan perkembangan kondisi.
+- **Arsitektur Siap Produksi**: Proyek ini dikemas dengan Docker, Docker Compose, dan Nginx, siap untuk di-deploy di lingkungan produksi seperti VPS.
 
-## Arsitektur
+## 🏗️ Arsitektur Sistem
 
-Proyek ini dibagi menjadi beberapa komponen:
+Sistem ini terdiri dari beberapa komponen utama yang bekerja sama:
 
-- **`backend/`:** Direktori ini berisi aplikasi FastAPI.
-    - **`app.py`:** Definisi utama aplikasi FastAPI, termasuk konfigurasi CORS dan router.
-    - **`api/`:** Berisi semua endpoint API yang dikelompokkan berdasarkan fungsionalitas (auth, users, chat).
-- **`bot_tele/`:** Direktori ini berisi kode untuk bot Telegram.
-    - **`bot.py`:** Logika utama bot, termasuk `ConversationHandler` untuk alur kuesioner dan registrasi.
-- **`static/` (Frontend):** Antarmuka web berbasis Vanilla JS, HTML, dan Tailwind CSS. Folder ini dirancang untuk di-deploy secara terpisah ke platform seperti Vercel.
-- **`main.py`:** Skrip untuk **development lokal**. Menjalankan server API FastAPI dan bot Telegram secara bersamaan dalam thread terpisah untuk kemudahan pengembangan.
-- **`common/`:** Direktori ini berisi modul umum yang digunakan oleh backend dan bot.
-    - **`config/`:** Pengaturan aplikasi yang dimuat dari file `.env`.
-    - **`data/`:** Data yang digunakan oleh layanan RAG (file PDF dan database ChromaDB).
-    - **`schemas/`:** Skema Pydantic untuk validasi data API.
-- **`core/`:** Direktori ini berisi layanan inti aplikasi.
-    - **`services/`:** Layanan inti untuk interaksi database, OpenRouter, profiling, dan RAG.
-- **Docker & Nginx:**
-    - **`Dockerfile`:** Instruksi untuk membangun image container tunggal yang berisi backend dan bot.
-    - **`docker-compose.yml`:** Mengorkestrasi layanan aplikasi (`app`) dan `nginx` untuk berjalan bersama di produksi.
-    - **`nginx/nginx.conf`:** Konfigurasi Nginx sebagai *reverse proxy* untuk backend API.
+```
+      Pengguna           Pengguna
+         |                  |
+     (Telegram)           (Web Browser)
+         |                  |
+         |             (Vercel/Netlify)
+         |                  |
+         +-------+----------+
+                 |
+              (Internet)
+                 |
+      +--------- v ---------+
+      |   NGINX (Reverse Proxy)  |  <-- Port 80/443
+      +--------------------------+
+                 |
+      +--------- v ---------+
+      | Docker Container: app    |
+      |--------------------------|
+      |  - FastAPI Backend (API) |  <-- Port 8000 (internal)
+      |  - Telegram Bot Polling  |
+      |--------------------------|
+      |      Core Services       |
+      |  - OpenRouter (LLM)      |
+      |  - RAG (ChromaDB)        |
+      |  - Profiling             |
+      |  - Database              |
+      +--------------------------+
+                 |
+       +---------+----------+
+       |                    |
+       v                    v
+  (MySQL DB)         (OpenRouter API)
+```
 
-## Persiapan
+## 🛠️ Tumpukan Teknologi
 
-### Prasyarat
+- **Backend**: FastAPI
+- **Bot**: `python-telegram-bot`
+- **Database**: MySQL
+- **LLM Service**: OpenRouter
+- **Vector Store (RAG)**: ChromaDB
+- **Deployment**: Docker, Docker Compose, Nginx
+- **Frontend**:  HTML, Tailwind CSS (dideploy terpisah)
 
-- Python 3.10 atau lebih tinggi
-- Docker & Docker Compose (untuk deployment produksi)
-- Database MySQL
+## 📂 Struktur Proyek
 
-### Instalasi
+```
+.
+├── backend/         # Aplikasi FastAPI (API endpoints)
+├── bot_tele/        # Logika Bot Telegram (ConversationHandler, dll.)
+├── common/          # Modul bersama (konfigurasi, skema data)
+├── core/            # Layanan inti (database, RAG, profiling, LLM)
+├── static/          # Kode Frontend (HTML, JS, CSS) - untuk deployment terpisah
+├── main.py          # Titik masuk untuk development lokal
+├── Dockerfile       # Instruksi build image Docker
+├── docker-compose.yml # Orkestrasi container untuk produksi
+├── nginx/           # Konfigurasi Nginx sebagai reverse proxy
+└── requirements.txt # Dependensi Python
+```
 
-1. **Kloning repositori:**
-   ```bash
-   git clone https://github.com/your-username/your-repository.git
-   ```
-2. **Buat lingkungan virtual:**
-   ```bash
-   python -m venv venv
-   ```
-3. **Aktifkan lingkungan virtual:**
-   - Di Windows:
-     ```bash
-     venv\Scripts\activate
-     ```
-   - Di macOS dan Linux:
-     ```bash
-     source venv/bin/activate
-     ```
-4. **Instal dependensi:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-   > **Catatan:** Jika Anda mendapatkan error `No matching distribution found` saat menginstal, kemungkinan besar `pip` Anda sudah usang. Perbarui `pip` dengan menjalankan:
-   > ```bash
-   > python -m pip install --upgrade pip
-   > ```
-   > Kemudian, jalankan kembali perintah `pip install -r requirements.txt`.
+## 🚀 Instalasi dan Konfigurasi
 
-5. **Konfigurasi Variabel Lingkungan:**
-   Buat file `.env` di direktori root dan tambahkan variabel berikut:
-   ```env
-   DB_HOST=your-db-host
-   DB_USER=your-db-user
-   DB_PASSWORD=your-db-password
-   DB_NAME=your-db-name
+### 1. Prasyarat
+- Python 3.10+
+- Docker & Docker Compose
+- Database MySQL yang sedang berjalan
 
-   TELEGRAM_BOT_TOKEN=your-telegram-bot-token
-   OPENROUTER_API_KEY=your-openrouter-api-key
+### 2. Langkah Instalasi
+1.  **Kloning Repositori**
+    ```bash
+    git clone https://github.com/your-username/your-repository.git
+    cd your-repository
+    ```
+2.  **Buat dan Aktifkan Lingkungan Virtual**
+    ```bash
+    python -m venv venv
+    # Windows
+    venv\Scripts\activate
+    # macOS/Linux
+    source venv/bin/activate
+    ```
+3.  **Instal Dependensi**
+    ```bash
+    pip install --upgrade pip
+    pip install -r requirements.txt
+    ```
+4.  **Konfigurasi Variabel Lingkungan**
+    Buat file `.env` di direktori root proyek dan isi dengan konfigurasi Anda.
+    ```env
+    # Konfigurasi Database
+    DB_HOST=127.0.0.1
+    DB_USER=root
+    DB_PASSWORD=
+    DB_NAME=kesehatan
 
-   SECRET_KEY=your_super_secret_random_string_for_jwt
-   ALGORITHM=HS256
-   ACCESS_TOKEN_EXPIRE_MINUTES=30
+    # Kunci API
+    TELEGRAM_BOT_TOKEN=your-telegram-bot-token
+    OPENROUTER_API_KEY=your-openrouter-api-key
 
-   # Nonaktifkan telemetri ChromaDB untuk menghindari potensi error
-   ANONYMIZED_TELEMETRY=false
-   ```
+    # Konfigurasi JWT untuk otentikasi web
+    SECRET_KEY=your_super_secret_random_string_for_jwt
+    ALGORITHM=HS256
+    ACCESS_TOKEN_EXPIRE_MINUTES=1440 # 1 hari
 
-## Menjalankan Aplikasi
+    # Token internal untuk komunikasi aman antara bot dan backend
+    INTERNAL_BOT_TOKEN=another_super_secret_string
 
-### 1. Development Lokal (Direkomendasikan)
+    # Nonaktifkan telemetri ChromaDB
+    ANONYMIZED_TELEMETRY=false
+    ```
 
-1.  **Jalankan Backend & Bot:**
-    Buka terminal, aktifkan virtual environment, dan jalankan `main.py`.
+## 💻 Menjalankan Aplikasi
+
+### Mode Development (Lokal)
+1.  **Jalankan Backend & Bot**: Buka terminal, aktifkan *virtual environment*, dan jalankan `main.py`.
     ```bash
     python main.py
     ```
-    Ini akan memulai server API di `http://localhost:8000` dan menjalankan bot Telegram.
+    Perintah ini akan menjalankan server API FastAPI di `http://localhost:8000` dan bot Telegram secara bersamaan.
 
-2.  **Jalankan Frontend:**
-    Buka terminal **kedua**, masuk ke direktori `static/`, dan jalankan server web sederhana.
+2.  **Jalankan Frontend**: Buka terminal **kedua**, masuk ke direktori `static/`, dan jalankan server web sederhana.
     ```bash
     cd static
     python -m http.server 3000
     ```
+3.  **Akses Aplikasi**:
+    - **Web**: Buka browser dan kunjungi `http://localhost:3000`.
+    - **Telegram**: Cari bot Anda di aplikasi Telegram dan mulai percakapan.
 
-3.  **Akses Aplikasi:**
-    - Buka browser dan kunjungi `http://localhost:3000` untuk mengakses antarmuka web.
-    - Cari bot Anda di Telegram dan mulai percakapan.
+### Mode Produksi (Docker)
+1.  **Deploy Frontend**: Deploy konten dari folder `static/` ke layanan hosting statis seperti Vercel, Netlify, atau GitHub Pages.
 
-### 2. Deployment Produksi (Docker di VPS)
-
-1.  **Deploy Frontend:**
-    Deploy konten dari folder `static/` ke layanan hosting statis seperti Vercel atau Netlify.
-
-2.  **Deploy Backend & Bot:**
-    - Salin seluruh proyek (kecuali folder `static`) ke VPS Anda.
-    - Pastikan Docker dan Docker Compose sudah terinstal di VPS.
-    - Buat file `.env` di VPS dan isi dengan kredensial produksi.
-    - Perbarui `nginx/nginx.conf` dengan nama domain atau IP VPS Anda.
-    - Jalankan Docker Compose:
+2.  **Deploy Backend**:
+    - Salin seluruh kode proyek (kecuali folder `static/`) ke server/VPS Anda.
+    - Pastikan Docker dan Docker Compose terinstal di server.
+    - Buat file `.env` di server dengan kredensial produksi.
+    - (Opsional) Ubah `nginx/nginx.conf` untuk menyesuaikan dengan nama domain Anda.
+    - Jalankan Docker Compose dari direktori root proyek:
       ```bash
-      docker-compose up --build -d
+      docker-compose up --build -d # Opsi --build untuk membangun image baru, -d untuk detached mode
       ```
-    Ini akan membangun dan menjalankan container untuk aplikasi utama (backend + bot) dan Nginx.
+    Perintah ini akan membangun image, lalu menjalankan container untuk aplikasi utama (backend + bot) dan Nginx sebagai *reverse proxy*.
 
-## Dokumentasi API
+## 📚 Dokumentasi API
 
-Dokumentasi detail untuk setiap endpoint API tersedia di file backend/README.md.
+Dokumentasi lengkap untuk setiap endpoint API tersedia di file `backend/README.md`.
+
+Secara ringkas, API dikelompokkan menjadi:
+- **`/api/v1/web-auth`**: Registrasi, login, dan manajemen autentikasi untuk antarmuka web.
+- **`/api/v1/users`**: Pengelolaan profil pengguna, biodata, dan riwayat kuesioner.
+- **`/api/v1/web-chat`**: Endpoint untuk interaksi chat dari antarmuka web.
+- **`/api/v1/internal/chat`**: Endpoint internal yang aman untuk interaksi chat dari bot Telegram.

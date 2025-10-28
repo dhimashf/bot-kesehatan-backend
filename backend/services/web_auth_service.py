@@ -1,5 +1,5 @@
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import Depends, HTTPException, status, Header
+from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 from jose import jwt, JWTError
 
 import os
@@ -11,14 +11,14 @@ from core.services.database import Database
 from common.config.db_config import DBConfig
 from common.config.settings import settings
 
-# --- Database Setup ---
-db = Database(
-    host=DBConfig.HOST,
-    user=DBConfig.USER,
-    password=DBConfig.PASSWORD,
-    database=DBConfig.NAME
-)
-# --------------------
+# --- Database Dependency ---
+def get_db():
+    """FastAPI dependency to create and clean up a database session."""
+    db = Database(host=DBConfig.HOST, user=DBConfig.USER, password=DBConfig.PASSWORD, database=DBConfig.NAME)
+    try:
+        yield db
+    finally:
+        pass # Koneksi dikelola secara internal oleh kelas Database
 
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
@@ -78,7 +78,7 @@ async def get_current_active_user(token: str = Depends(oauth2_scheme)) -> dict:
         raise credentials_exception
 
 # --- Core Authentication Logic ---
-def authenticate_user(email: str, password: str) -> Optional[dict]:
+def authenticate_user(db: Database, email: str, password:str) -> Optional[dict]:
     """
     Authenticates a user by email and password.
 
@@ -96,7 +96,7 @@ def authenticate_user(email: str, password: str) -> Optional[dict]:
         return None
     return user
 
-def get_user_full_profile_by_id(user_id: int) -> dict:
+def get_user_full_profile_by_id(db: Database, user_id: int) -> dict:
     """
     Retrieves a user's full profile, including biodata and profiling results, by their ID.
     This is used after a successful login to populate the bot's context. It joins data
@@ -124,7 +124,7 @@ def get_user_full_profile_by_id(user_id: int) -> dict:
     
     return response
 
-def find_user_by_email(email: str) -> Optional[dict]:
+def find_user_by_email(db: Database, email: str) -> Optional[dict]:
     """
     Finds a user by email without password verification.
     Used for Telegram bot login.
@@ -134,7 +134,7 @@ def find_user_by_email(email: str) -> Optional[dict]:
     """
     return db.get_user(email=email)
 
-def set_user_password(email: str, password: str) -> bool:
+def set_user_password(db: Database, email: str, password: str) -> bool:
     """
     Sets the password for a user who registered without one (e.g., via Telegram).
     """
@@ -144,3 +144,16 @@ def set_user_password(email: str, password: str) -> bool:
     
     hashed_password = get_password_hash(password)
     return db.update_user_password(user['id'], hashed_password)
+
+
+def internal_token_dependency(x_internal_token: str = Header(...)):
+    """
+    Dependency to protect internal endpoints.
+    It checks for a secret token in the X-Internal-Token header.
+    """
+    if x_internal_token != settings.INTERNAL_BOT_TOKEN:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid internal token",
+        )
+    return True

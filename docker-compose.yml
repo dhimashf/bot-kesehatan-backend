@@ -9,6 +9,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env # Menggunakan variabel dari file .env
+    environment:
+      - INTERNAL_API_HOST=localhost # Host untuk komunikasi internal di dalam container
     volumes:
       - ./common/data:/app/common/data # Mount volume untuk data RAG (ChromaDB, PDF)
     networks:

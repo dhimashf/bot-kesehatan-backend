@@ -9,16 +9,7 @@ from common.config.db_config import DBConfig
 from core.services.profiling_service import get_password_hash
 from backend.api.v1.schemas.web_auth import WebAccountCreate
 
-# --- Database Setup ---
-db = Database(
-    host=DBConfig.HOST,
-    user=DBConfig.USER,
-    password=DBConfig.PASSWORD,
-    database=DBConfig.NAME
-)
-# --------------------
-
-def create_user(user: WebAccountCreate):
+def create_user(db: Database, user: WebAccountCreate):
     """
     Handles the business logic for creating a new user.
     """
@@ -34,7 +25,7 @@ def create_user(user: WebAccountCreate):
     # Return the basic user info
     return {"id": user_id, "email": user.email}
 
-def create_user_from_telegram(email: str):
+def create_user_from_telegram(db: Database, email: str):
     """
     Handles the business logic for creating a new user from Telegram.
     The initial password will be set to the user's email.
@@ -51,7 +42,7 @@ def create_user_from_telegram(email: str):
     
     return {"id": user_id, "email": email}
 
-def check_user_profile_status(user_id: int) -> dict:
+def check_user_profile_status(db: Database, user_id: int) -> dict:
     """
     Checks if a user has completed their identity profile.
     """

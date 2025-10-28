@@ -24,23 +24,38 @@ def get_user_profile_status(current_user: dict = Depends(web_auth_service.get_cu
     return status
 
 @router.get("/profile/full", response_model=FullUserProfileResponse)
-def get_user_full_profile(current_user: dict = Depends(web_auth_service.get_current_active_user)):
+def get_user_full_profile(
+    current_user: dict = Depends(web_auth_service.get_current_active_user),
+    db: web_auth_service.Database = Depends(web_auth_service.get_db)
+):
     """
     Get the user's full profile, including biodata and latest health results.
     """
     user_id = current_user.get("id")
-    full_profile_data = web_auth_service.get_user_full_profile_by_id(user_id)
+    full_profile_data = web_auth_service.get_user_full_profile_by_id(db, user_id)
 
     # Proses hasil kesehatan untuk menambahkan interpretasi/kategori
     if full_profile_data.get("health_results"):
         processed_results = []
         for hr in full_profile_data["health_results"]:
-            _, who5_cat = profiling_service.get_who5_result([hr['who5_total']])
-            _, gad7_cat = profiling_service.get_gad7_result([hr['gad7_total']])
-            _, k10_cat = profiling_service.get_k10_result([hr['k10_total']])
-            mbi_ee_cat = profiling_service.get_mbi_category('emosional', hr['mbi_emosional_total'])
-            mbi_cyn_cat = profiling_service.get_mbi_category('sinis', hr['mbi_sinis_total'])
-            mbi_pa_cat = profiling_service.get_mbi_category('pencapaian', hr['mbi_pencapaian_total'])
+            # Mengambil nilai dengan .get() untuk menghindari KeyError jika kunci tidak ada
+            # Memberikan nilai default 0 jika tidak ada, agar tidak terjadi TypeError
+            who5_total = hr.get('who5_total', 0)
+            gad7_total = hr.get('gad7_total', 0)
+            k10_total = hr.get('k10_total', 0)
+            mbi_emosional_total = hr.get('mbi_emosional_total', 0)
+            mbi_sinis_total = hr.get('mbi_sinis_total', 0)
+            mbi_pencapaian_total = hr.get('mbi_pencapaian_total', 0)
+            naqr_pribadi_total = hr.get('naqr_pribadi_total', 0)
+            naqr_pekerjaan_total = hr.get('naqr_pekerjaan_total', 0)
+            naqr_intimidasi_total = hr.get('naqr_intimidasi_total', 0)
+
+            who5_cat = profiling_service.get_who5_category_from_total(who5_total)
+            gad7_cat = profiling_service.get_gad7_category_from_total(gad7_total)
+            k10_cat = profiling_service.get_k10_category_from_total(k10_total)
+            mbi_ee_cat = profiling_service.get_mbi_category('emosional', mbi_emosional_total)
+            mbi_cyn_cat = profiling_service.get_mbi_category('sinis', mbi_sinis_total)
+            mbi_pa_cat = profiling_service.get_mbi_category('pencapaian', mbi_pencapaian_total)
 
             processed_hr = hr.copy()
             processed_hr.update({
@@ -50,8 +65,8 @@ def get_user_full_profile(current_user: dict = Depends(web_auth_service.get_curr
                 "mbi_emosional_category": mbi_ee_cat,
                 "mbi_sinis_category": mbi_cyn_cat,
                 "mbi_pencapaian_category": mbi_pa_cat,
-                "mbi_total": hr['mbi_emosional_total'] + hr['mbi_sinis_total'] + hr['mbi_pencapaian_total'],
-                "naqr_total": hr['naqr_pribadi_total'] + hr['naqr_pekerjaan_total'] + hr['naqr_intimidasi_total']
+                "mbi_total": mbi_emosional_total + mbi_sinis_total + mbi_pencapaian_total,
+                "naqr_total": naqr_pribadi_total + naqr_pekerjaan_total + naqr_intimidasi_total
             })
             processed_results.append(processed_hr)
         full_profile_data["health_results"] = processed_results

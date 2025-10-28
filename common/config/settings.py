@@ -1,6 +1,10 @@
 import os
 from dotenv import load_dotenv
 
+# Nonaktifkan telemetri ChromaDB sebelum library lain diimpor.
+# Ini mencegah error "capture() takes 1 positional argument but 3 were given".
+os.environ["ANONYMIZED_TELEMETRY"] = "false"
+
 load_dotenv()
 
 class Settings:
@@ -17,6 +21,7 @@ class Settings:
     APP_HOST = os.getenv("APP_HOST", "0.0.0.0")
     APP_PORT = int(os.getenv("APP_PORT", 8000))
     DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+    INTERNAL_API_HOST = os.getenv("INTERNAL_API_HOST") # Host untuk komunikasi internal (bot -> api)
 
     # JWT Configuration
     SECRET_KEY = os.getenv("SECRET_KEY")

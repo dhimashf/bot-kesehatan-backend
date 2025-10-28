@@ -6,20 +6,20 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 # Disesuaikan dengan skema tabel `users` di database
 # Field 'password' ada di sini untuk alur ConversationHandler, tapi tidak disimpan di tabel `profiles`.
 BIODATA_FIELDS = [
-    ("email", "Masukkan Email Anda:"),
-    ("inisial", "Masukkan Inisial Nama Anda:"), # Dimulai dari index 2
-    ("no_wa", "Masukkan Nomor WhatsApp Aktif:"),
-    ("usia", "Masukkan Usia Anda (dalam tahun):"),
-    ("jenis_kelamin", "Pilih Jenis Kelamin:"),
-    ("pendidikan", "Pilih Pendidikan Terakhir:"),
-    ("lama_bekerja", "Berapa lama Anda bekerja di RSUP? (angka dalam tahun):"),
-    ("status_pegawai", "Pilih Status Kepegawaian:"),
-    ("jabatan", "Pilih Jabatan Anda:"),
+    ("email", "1. Masukkan Email Anda:"),
+    ("inisial", "2. Masukkan Inisial Nama Anda:"), # Dimulai dari index 2
+    ("no_wa", "3. Masukkan Nomor WhatsApp Aktif: (contoh: 081923456789)"),
+    ("usia", "4. Masukkan Usia Anda (dalam tahun):"),
+    ("jenis_kelamin", "5. Pilih Jenis Kelamin:"),
+    ("pendidikan", "6. Pilih Pendidikan Terakhir:"),
+    ("lama_bekerja", "7. Berapa lama Anda bekerja di RSUP M Djamil? (angka dalam tahun):"),
+    ("status_pegawai", "8. Pilih Status Kepegawaian:"),
+    ("jabatan", "9. Pilih Jabatan Anda:"),
     ("jabatan_lain", "Jika jabatan Anda 'Yang lain', sebutkan:"), # Hanya ditanya jika perlu
-    ("unit_ruangan", "Masukkan Unit/Ruangan tempat Anda bekerja:"),
-    ("status_perkawinan", "Pilih Status Perkawinan:"),
-    ("status_kehamilan", "Apakah Anda sedang hamil?"),
-    ("jumlah_anak", "Masukkan Jumlah Anak (ketik '0' jika belum ada):")
+    ("unit_ruangan", "10. Masukkan Unit/Ruangan tempat Anda bekerja:"),
+    ("status_perkawinan", "11. Pilih Status Perkawinan:"),
+    ("status_kehamilan", "12. Apakah Anda sedang hamil?"),
+    ("jumlah_anak", "13. Masukkan Jumlah Anak (ketik '0' jika belum ada):")
 ]
 
 BIODATA_OPTIONS = {
@@ -60,11 +60,11 @@ BIODATA_OPTIONS = {
 
 # WHO-5
 WHO5_QUESTIONS = [
-    "1. Saya merasa ceria dan bersemangat",
-    "2. Saya merasa tenang dan rileks",
-    "3. Saya merasa aktif dan energik",
-    "4. Saya bangun dengan perasaan segar dan cukup istirahat",
-    "5. Kehidupan sehari-hari saya dipenuhi dengan hal-hal yang menarik minat saya"
+    "14. Saya merasa ceria dan bersemangat",
+    "15. Saya merasa tenang dan rileks",
+    "16. Saya merasa aktif dan penuh semangat",
+    "17. Saya bangun dengan perasaan segar dan cukup istirahat",
+    "18. Kehidupan sehari-hari saya dipenuhi dengan hal-hal yang menarik minat saya"
 ]
 WHO5_LIKERT_OPTIONS = [
     ("Setiap Saat", 6),
@@ -83,13 +83,13 @@ WHO5_CATEGORY = [
 
 # GAD-7
 GAD7_QUESTIONS = [
-    "1. Merasa gelisah, cemas atau amat tegang",
-    "2. Tidak mampu menghentikan atau mengendalikan rasa khawatir",
-    "3. Terlalu mengkhawatirkan berbagai hal",
-    "4. Sulit untuk santai",
-    "5. Sangat gelisah sehingga sulit untuk duduk diam",
-    "6. Menjadi mudah jengkel atau lekas marah",
-    "7. Merasa takut seolah-olah sesuatu yang mengerikan mungkin terjadi"
+    "19. Merasa gugup, cemas atau gelisah",
+    "20. Tidak mampu menghentikan atau mengendalikan kekhawatiran",
+    "21. Terlalu khawatir tentang berbagai hal ",
+    "22. Kesulitan bersantai",
+    "23. Menjadi begitu gelisah sehingga sulit untuk duduk diam ",
+    "24. Menjadi mudah tersinggung",
+    "25. Merasa takut seolah-olah sesuatu yang buruk akan terjadi"
 ]
 GAD7_LIKERT_OPTIONS = [
     ("Sama sekali tidak", 0),
@@ -104,102 +104,17 @@ GAD7_CATEGORY = [
     (21, "Kecemasan Berat")
 ]
 
-MBI_QUESTIONS = [
-    # Kelelahan Emosional (1-9)
-    "1. Saya merasa emosi saya terkuras karena pekerjaan",
-    "2. Menghadapi dan bekerja secara langsung dnegan orang menyebabkan saya stres",
-    "3. Saya merasa seakan-akan hidup dan karir saya tidak akan berubah",
-    "4. Pekerjaan sebagai pemberi jasa membuat saya merasa frustasi",
-    "5. Saya merasa bekerja terlampau keras dalam pekerjaan saya",
-    "6. Menghadapi orang/klien dan bekerja untuk mereka seharian penuh membuat saya 'tertekan'",
-    "7. Saya merasa jenuh dan 'burnout' karena pekerjaan saya",
-    "8. Saya merasa lesu ketika bangun pagi karena harus menjalani hari di tempat kerja untuk menghadapi klien",
-    "9. Saya merasakan kelelahan fisik yang amat sangat di akhir hari kerja",
-    # Sikap Sinis (10-14)
-    "10. Saya merasa bahwa saya memperlakukan beberapa klien seolah merka objek impersonal",
-    "11. Saya merasa para pengguna menyalahkan saya atas masalah-masalah yang mereka alami",
-    "12. Saya benar-benar tidak peduli pada apa yang terjadi terhadap klien saya",
-    "13. Saya menjadi semakin 'kaku' terhadap orang lain sejak saya mendapatkan pekerjaan ini",
-    "14. Saya khawatir pekerjaan ini membuat saya 'dingin' secara emosional",
-    # Pencapaian Pribadi (15-22)
-    "15. Saya telah mendapatkan dan mengalami banyak hal yang berharga dalam pekerjaan ini",
-    "16. Saya merasa sangat bersemangat dalam melakukan pekerjaan saya",
-    "17. Saya dengan mudah dapat memahami bagimana perasaan klien",
-    "18. Saya dapat bertindak secara efektif ketika klien menghadapi suatu masalah",
-    "19. Saya menghadapi masalah-masalah emosional dalam pekerjaan saya dengan tenang dan 'kepala dingin'",
-    "20. Saya memberikan pengaruh positif terhadap kehidupan orang lain melalui pekerjaan saya",
-    "21. Saya dengan mudah bisa menciptakan suasana yang santai / rileks dengan para klien",
-    "22. Saya merasa gembira setelah melakukan tugas saya untuk para klien secara langsung"
-]
-MBI_LIKERT_OPTIONS = [
-    ("Tidak pernah", 1),
-    ("Beberapa kali dalam setahun", 2),
-    ("Sekali dalam sebulan", 3),
-    ("Beberapa Kali dalam sebulan", 4),
-    ("Sekali dalam seminggu", 5),
-    ("Beberapa kali dalam seminggu", 6),
-    ("Setiap hari", 7)
-]
-MBI_SUBSCALES = {
-    "emosional": list(range(0, 9)),
-    "sinis": list(range(9, 14)),
-    "pencapaian": list(range(14, 22))
-}
-MBI_CATEGORY = {
-    "emosional": [(14, "Rendah"), (23, "Sedang"), (999, "Tinggi")],
-    "sinis": [(3, "Rendah"), (8, "Sedang"), (999, "Tinggi")],
-    "pencapaian": [(11, "Rendah"), (18, "Sedang"), (999, "Tinggi")],
-    "total": [(32, "Rendah"), (49, "Sedang"), (999, "Tinggi")]
-}
-
-NAQR_QUESTIONS = [
-    "1. Seseorang menahan informasi yang mempengaruhi ke kinerja Saya",
-    "2. Saya dipermalukan atau ditertawakan karena hal yang berkaitan dengan pekerjaan saya",
-    "3. Saya diperintahkan untuk melakukan pekerjaan di bawah tingkat kompetensi Saya",
-    "4. Tanggung jawab utama Saya dihilangkan atau diganti dengan tugas yang lebih remeh/ tidak penting/ rendah/ tidak menyenangkan",
-    "5. Ada yang menyebarkan gosip dan desas desus tentang saya",
-    "6. Saya diabaikan atau dikucilkan (dianggap tidak ada) di lingkungan kerja saya",
-    "7. Saya dihina atau menerima kata-kata kasar tentang diri saya (misalnya tentang kebiasaan dan latar belakang saya, sikap, atau kehidupan pribadi saya)",
-    "8. Saya dibentak atau menjadi target kemarahan spontan (atau amukan spontan)",
-    "9. Saya menerima perlakuan yang intimidatif seperti ditunjuk-tunjuk, pelanggaran ruang pribadi/privasi, didorong, dihambat/dihalangi saat berjalan",
-    "10. Saya menerima kata-kata sindiran atau tanda-tanda dari rekan lain bahwa saya seharusnya mengundurkan diri dari pekerjaan saya",
-    "11. Saya terus menerus diingatkan pada kesalahan dan kelalaian saya",
-    "12. Saya diabaikan atau menerima reaksi yang tidak bersahabat ketika saya mendekati seseorang",
-    "13. Saya terus menerus menerima kritikan terkait pekerjaan dan usaha saya",
-    "14. Pendapat dan pandangan saya tidak didengar",
-    "15. Saya menjadi korban lelucon orang-orang yang tidak cocok dengan saya",
-    "16. Saya diberi tugas dengan target atau tenggat waktu yang tidak masuk akal",
-    "17. Saya pernah dituduh berbuat salah atau ilegal tanpa bukti",
-    "18. Saya diawasi secara berlebihan di tempat kerja saya",
-    "19. Saya tidak diperbolehkan untuk mengambil apa yang menjadi hak saya di tempat kerja (misalnya cuti sakit, hak libur, biaya perjalanan)",
-    "20. Saya menjadi target ejekan dan sindiran kasar (sarcasm)",
-    "21. Saya diberi beban kerja yang tidak mungkin dapat saya kelola",
-    "22. Saya menerima ancaman kekerasan atau pelecehan secara ﬁsik atau verbal/ ujaran (perkataan)"
-]
-NAQR_LIKERT_OPTIONS = [
-    ("Tidak Pernah", 1),
-    ("Kadang-kadang", 2),
-    ("Setiap Bulan", 3),
-    ("Setiap Minggu", 4),
-    ("Setiap Hari", 5)
-]
-NAQR_SUBSCALES = {
-    "pribadi": [1,4,5,6,8,9,11,14,16,19,21], # index 2,5,6,7,9,10,12,15,17,20,22 (1-based)
-    "pekerjaan": [0,2,3,13,15,18,20], # index 1,3,4,14,16,19,21 (1-based)
-    "intimidasi": [7,10,12,17] # index 8,11,13,18 (1-based)
-}
-
 K10_QUESTIONS = [
-    "1. Merasa sangat lelah tanpa alasan yang kuat?",
-    "2. Merasa gugup/cemas?",
-    "3. Merasa sangat gugup/cemas sampai-sampai tidak ada sesuatupun yang bisa menenangkan Anda?",
-    "4. Merasa putus asa/tidak ada harapan?",
-    "5. Merasa gelisah atau resah?",
-    "6. Merasa sangat gelisah sampai-sampai Anda tidak bisa duduk dengan tenang?",
-    "7. Merasa tertekan?",
-    "8. Merasa sangat tertekan sampai-sampai tidak ada yang dapat membuat Anda ceria/terhibur?",
-    "9. Merasakan bahwa semua yang diinginkan membutuhkan usaha keras?",
-    "10. Merasa tidak berguna?"
+    "26. Merasa sangat lelah tanpa alasan yang kuat?",
+    "27. Merasa gugup/cemas?",
+    "28. Merasa sangat gugup/cemas sampai-sampai tidak ada sesuatupun yang bisa menenangkan Anda?",
+    "29. Merasa putus asa/tidak ada harapan?",
+    "30. Merasa gelisah atau resah?",
+    "31. Merasa sangat gelisah sampai-sampai Anda tidak bisa duduk dengan tenang?",
+    "32. Merasa tertekan?",
+    "33. Merasa sangat tertekan sampai-sampai tidak ada yang dapat membuat Anda ceria/terhibur?",
+    "34. Merasakan bahwa semua yang diinginkan membutuhkan usaha keras?",
+    "35. Merasa tidak berguna?"
 ]
 K10_LIKERT_OPTIONS = [
     ("Tidak Pernah", 1),
@@ -214,6 +129,112 @@ K10_CATEGORY = [
     (29, "Distres tinggi"),
     (50, "Distres sangat tinggi")
 ]
+
+MBI_QUESTIONS = [
+    # Kelelahan Emosional (1-9)
+    "36. Saya merasa emosi saya terkuras karena pekerjaan",
+    "37. Menghadapi dan bekerja secara langsung dnegan orang menyebabkan saya stres",
+    "38. Saya merasa seakan akan hidup dan karir saya tidak akan berubah ",
+    "39. Pekerjaan sebagai pemberi jasa membuat saya merasa frustasi ",
+    "40. Saya merasa bekerja terlampau keras dalam pekerjaan saya",
+    "41. Menghadapi orang/klien dan bekerja untuk mereka seharian penuh membuat saya 'tertekan'",
+    "42. Saya merasa jenuh dan 'burnout' karena pekerjaan saya",
+    "43. Saya merasa lesu ketika bangun pagi karena harus menjalani hari di tempat kerja untuk menghadapi klien",
+    "44. Saya merasakan kelelahan fisik yang amat sangat di akhir hari kerja",
+    # Pencapaian Pribadi (10-17)
+    "45. Saya telah mendapatkan dan mengalami banyak hal yang berharga dalam pekerjaan ini",
+    "46. Saya merasa sangat bersemangat dalam melakukan pekerjaan saya dan dalam menghadapi para klien saya",
+    "47. Saya dengan mudah dapat memahami bagimana perasaan klien tentang hal hal ingin mereka penuhi dan mereka peroleh dari layanan yang saya berikan",
+    "48. Saya bisa menjawab dan melayani klien saya dengan efektif",
+    "49. Saya menghadapi masalah-masalah emosional dalam pekerjaan saya dengan tenang dan 'kepala dingin'",
+    "50. Saya merasa memberikan pengaruh positif terhadap kehidupan orang lain melalui pekerjaan saya sebagai pemberi jasa",
+    "51. Saya dengan mudah bisa menciptakan suasana yang santai/relaks dengan para klien",
+    "52. Saya merasa gembira setelah melakukan tugas saya untuk para klien secara langsung",
+    # Sikap Sinis (18-22)
+    "53. Saya merasa bahwa saya memperlakukan beberapa klien seolah mereka objek impersonal",
+    "54. Saya merasa para pengguna menyalahkan saya atas masalah-masalah yang mereka alami",
+    "55. Saya benar-benar tidak peduli pada apa yang terjadi terhadap klien saya",
+    "56. Saya menjadi semakin 'kaku' terhadap orang lain sejak saya bekerja sebagai pemberi jasa",
+    "57. Saya khawatir pekerjaan ini membuat saya 'dingin' secara emosional",
+]
+MBI_LIKERT_OPTIONS = [
+    ("Tidak pernah", 0),
+    ("Beberapa kali dalam setahun", 1),
+    ("Sekali dalam sebulan", 2),
+    ("Beberapa Kali dalam sebulan", 3),
+    ("Sekali dalam seminggu", 4),
+    ("Beberapa kali dalam seminggu", 5),
+    ("Setiap hari", 6)
+]
+MBI_SUBSCALES = {
+    "emosional": list(range(0, 9)),
+    "pencapaian": list(range(9, 17)),
+    "sinis": list(range(17, 22))
+}
+MBI_CATEGORY = {
+    "emosional": [(14, "Rendah"), (23, "Sedang"), (999, "Tinggi")],
+    "pencapaian": [(11, "Rendah"), (18, "Sedang"), (999, "Tinggi")],
+    "sinis": [(3, "Rendah"), (8, "Sedang"), (999, "Tinggi")],
+    "total": [(32, "Rendah"), (49, "Sedang"), (999, "Tinggi")]
+}
+
+NAQR_QUESTIONS = [
+    "58. Seseorang menahan informasi yang mempengaruhi ke kinerja Saya",
+    "59. Saya dipermalukan atau ditertawakan karena hal yang berkaitan dengan pekerjaan saya",
+    "60. Saya diperintahkan untuk melakukan pekerjaan di bawah tingkat kompetensi Saya",
+    "61. Tanggung jawab utama Saya dihilangkan atau diganti dengan tugas yang lebih remeh/ tidak penting/ rendah/ tidak menyenangkan",
+    "62. Ada yang menyebarkan gosip dan desas desus tentang saya",
+    "63. Saya diabaikan atau dikucilkan (dianggap tidak ada) di lingkungan kerja saya",
+    "64. Saya dihina atau menerima kata-kata kasar tentang diri saya (misalnya tentang kebiasaan dan latar belakang saya, sikap, atau kehidupan pribadi saya)",
+    "65. Saya dibentak atau menjadi target kemarahan spontan (atau amukan spontan)",
+    "66. Saya menerima perlakuan yang intimidatif seperti ditunjuk-tunjuk, pelanggaran ruang pribadi/privasi, didorong, dihambat/dihalangi saat berjalan",
+    "67. Saya menerima kata-kata sindiran atau tanda-tanda dari rekan lain bahwa saya seharusnya mengundurkan diri dari pekerjaan saya",
+    "68. Saya terus menerus diingatkan pada kesalahan dan kelalaian saya",
+    "69. Saya diabaikan atau menerima reaksi yang tidak bersahabat ketika saya mendekati seseorang",
+    "70. Saya terus menerus menerima kritikan terkait pekerjaan dan usaha saya",
+    "71. Pendapat dan pandangan saya tidak didengar",
+    "72. Saya menjadi korban lelucon orang-orang yang tidak cocok dengan saya",
+    "73. Saya diberi tugas dengan target atau tenggat waktu yang tidak masuk akal",
+    "74. Saya pernah dituduh berbuat salah atau ilegal tanpa bukti",
+    "75. Saya diawasi secara berlebihan di tempat kerja saya",
+    "76. Saya tidak diperbolehkan untuk mengambil apa yang menjadi hak saya di tempat kerja (misalnya cuti sakit, hak libur, biaya perjalanan)",
+    "77. Saya menjadi target ejekan dan sindiran kasar (sarcasm)",
+    "78. Saya diberi beban kerja yang tidak mungkin dapat saya kelola",
+    "79. Saya menerima ancaman kekerasan atau pelecehan secara ﬁsik atau verbal/ ujaran (perkataan)",
+    # Item tambahan (80–82)
+    "80. Apakah Anda pernah mengalami perundungan di tempat kerja dalam enam bulan terakhir? (Gunakan definisi perundungan sebagaimana dijelaskan)",
+    "81. Siapa saja yang melakukan perundungan terhadap Anda? (Boleh lebih dari satu)",
+    "82. Sebutkan jumlah pelaku perundungan terhadap Anda (laki-laki dan perempuan)",
+]
+NAQR_LIKERT_OPTIONS = [
+    ("Tidak Pernah", 1),
+    ("Kadang-kadang", 2),
+    ("Setiap Bulan", 3),
+    ("Setiap Minggu", 4),
+    ("Setiap Hari", 5)
+]
+NAQR_BULLYING_EXPERIENCE_OPTIONS = [
+    ("Tidak", 1),
+    ("Ya, tapi jarang", 2),
+    ("Ya, kadang-kadang", 3),
+    ("Ya, beberapa kali per minggu", 4),
+    ("Ya, hampir tiap hari", 5)
+]
+# Opsi pelaku (item 81)
+NAQR_BULLYING_ACTORS = [
+    "Atasan langsung saya",
+    "Atasan/manajer lain dalam organisasi",
+    "Rekan kerja",
+    "Bawahan",
+    "Pelanggan/Pasien/Pelajar, dll",
+    "Yang lain (tuliskan)"
+]
+NAQR_SUBSCALES = {
+    "pribadi": [1,4,5,6,8,9,11,14,16,19,21], # index 2,5,6,7,9,10,12,15,17,20,22 (1-based)
+    "pekerjaan": [0,2,3,13,15,18,20], # index 1,3,4,14,16,19,21 (1-based)
+    "intimidasi": [7,10,12,17] # index 8,11,13,18 (1-based)
+}
+
 
 from core.services.database import Database
 from passlib.context import CryptContext
@@ -453,6 +474,24 @@ class ProfilingService:
                 return label
         return self.mbi_category[scale][-1][1]
     # NAQ-R
+    def get_naqr_keyboard_for_question(self, idx):
+        """
+        Mengembalikan InlineKeyboardMarkup yang sesuai untuk pertanyaan NAQ-R berdasarkan indeks.
+        Untuk pertanyaan teks, mengembalikan None.
+        """
+        if idx < 22: # Pertanyaan NAQ-R utama (0-21)
+            return InlineKeyboardMarkup([
+                [InlineKeyboardButton(f"{label} ({score})", callback_data=str(score))] for label, score in self.naqr_options
+            ])
+        elif idx == 22: # Pertanyaan 80: Opsi pengalaman perundungan
+            return InlineKeyboardMarkup([
+                [InlineKeyboardButton(label, callback_data=str(score))] for label, score in NAQR_BULLYING_EXPERIENCE_OPTIONS
+            ])
+        elif idx == 23: # Pertanyaan 81: Input teks
+            return None
+        elif idx == 24: # Pertanyaan 82: Input teks
+            return None
+        return None
 
     def get_mbi_result_from_totals(self, health_result: dict) -> str:
         """Mendapatkan ringkasan MBI dari total skor yang sudah ada."""
@@ -481,19 +520,21 @@ class ProfilingService:
         total = pribadi + pekerjaan + intimidasi
         return (
             f"Perundungan Pribadi: {pribadi}\n"
-            f"Perundungan Pekerjaan: {pekerjaan}\n"
-            f"Intimidasi: {intimidasi}\n"
-            f"Total Skor: {total}"
+            f"Perundungan Pekerjaan: {pekerjaan}\n" # K10 is now before MBI
+            f"Intimidasi: {intimidasi}\n" # K10 is now before MBI
+            f"Total Skor: {total}" # K10 is now before MBI
         )
-
-    def get_naqr_keyboard(self):
-        return InlineKeyboardMarkup([
-            [InlineKeyboardButton(f"{label} ({score})", callback_data=str(score))] for label, score in self.naqr_options
-        ])
 
     def get_naqr_question(self, idx):
         if 0 <= idx < len(self.naqr_questions):
-            return f"Selama enam bulan terakhir, seberapa sering Anda mengalami tindakan negatif berikut di tempat kerja?\n{self.naqr_questions[idx]}"
+            if idx < 22: # Main NAQR questions (0-21)
+                return f"Selama enam bulan terakhir, seberapa sering Anda mengalami tindakan negatif berikut di tempat kerja?\n{self.naqr_questions[idx]}"
+            elif idx == 22: # Q80
+                return self.naqr_questions[idx]
+            elif idx == 23: # Q81
+                return f"{self.naqr_questions[idx]}\n(Sebutkan nama/jabatan, pisahkan dengan koma jika lebih dari satu)"
+            elif idx == 24: # Q82
+                return f"{self.naqr_questions[idx]}\n(Contoh: 2 laki-laki, 1 perempuan)"
         return None
 
     def get_naqr_result(self, scores):

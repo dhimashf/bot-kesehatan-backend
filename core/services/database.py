@@ -1,18 +1,47 @@
 import mysql.connector
 from mysql.connector import pooling
-from typing import Optional
+from typing import Optional, Any
+import threading
+
+# Lock untuk memastikan inisialisasi pool thread-safe
+_pool_lock = threading.Lock()
+_connection_pool = None
 
 class Database:
-    def __init__(self, host: str = '127.0.0.1', user: str = 'root', password: str = '', database: str = 'kesehatan'):
-        self.pool = mysql.connector.pooling.MySQLConnectionPool(
-            pool_name="my_pool",
-            pool_size=5,
-            pool_reset_session=True,
-            host=host,
-            user=user,
-            password=password,
-            database=database
-        )
+    """
+    Kelas Database yang mengelola satu connection pool (singleton).
+    Ini mencegah pembuatan pool baru pada setiap instansiasi.
+    """
+    def __init__(self, host: str = '127.0.0.1', user: str = 'root', password: str = '', database: str = 'kesehatan', pool_size: int = 5):
+        global _connection_pool
+        if _connection_pool is None:
+            with _pool_lock:
+                if _connection_pool is None:
+                    _connection_pool = mysql.connector.pooling.MySQLConnectionPool(
+                        pool_name="psikobot_pool",
+                        pool_size=pool_size,
+                        pool_reset_session=True,
+                        host=host,
+                        user=user,
+                        password=password,
+                        database=database
+                    )
+        self.pool = _connection_pool
+        self.conn = None
+        self.cursor = None
+
+    def __enter__(self):
+        """Memungkinkan penggunaan 'with Database() as db:'."""
+        self.conn = self.pool.get_connection()
+        self.cursor = self.conn.cursor(dictionary=True)
+        return self # Mengembalikan instance itu sendiri
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Menutup cursor dan mengembalikan koneksi ke pool."""
+        if self.cursor:
+            self.cursor.close()
+        if self.conn:
+            self.conn.close()
 
     def execute_query(self, query, params=None, fetch=None):
         conn = self.pool.get_connection()
@@ -29,6 +58,13 @@ class Database:
         finally:
             cursor.close()
             conn.close()
+
+    def close(self):
+        """Menutup seluruh connection pool. Panggil saat aplikasi berhenti."""
+        global _connection_pool
+        if _connection_pool is not None:
+            # mysql-connector tidak punya metode close() untuk pool, jadi kita set ke None
+            _connection_pool = None
 
     def create_user_account(self, email: str, hashed_password: str) -> int:
         """
