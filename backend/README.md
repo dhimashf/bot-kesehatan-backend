@@ -2,7 +2,7 @@
 
 Selamat datang di dokumentasi API untuk backend Asisten Kesejahteraan Diri. API ini dirancang untuk melayani antarmuka web dan bot Telegram.
 
-**Base URL:** `http://your-host:8000`
+**Base URL:** `http://your-host:8010`
 
 ---
 

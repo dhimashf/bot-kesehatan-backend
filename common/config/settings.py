@@ -19,7 +19,7 @@ class Settings:
     
     # Application Configuration
     APP_HOST = os.getenv("APP_HOST", "0.0.0.0")
-    APP_PORT = int(os.getenv("APP_PORT", 8000))
+    APP_PORT = int(os.getenv("APP_PORT", 8010))
     DEBUG = os.getenv("DEBUG", "False").lower() == "true"
     INTERNAL_API_HOST = os.getenv("INTERNAL_API_HOST") # Host untuk komunikasi internal (bot -> api)
 

@@ -17,14 +17,14 @@ services:
       - app-network
     # Healthcheck tetap diperlukan untuk memastikan backend FastAPI siap
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8010/health"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
-    # Port 8000 diekspos secara internal di dalam network
+    # Port 8010 diekspos secara internal di dalam network
     expose:
-      - "8000"
+      - "8010"
 
   # Service untuk Nginx Reverse Proxy
   nginx:

@@ -34,7 +34,7 @@ Sistem ini terdiri dari beberapa komponen utama yang bekerja sama:
       +--------- v ---------+
       | Docker Container: app    |
       |--------------------------|
-      |  - FastAPI Backend (API) |  <-- Port 8000 (internal)
+      |  - FastAPI Backend (API) |  <-- Port 8010 (internal)
       |  - Telegram Bot Polling  |
       |--------------------------|
       |      Core Services       |
@@ -134,7 +134,7 @@ Sistem ini terdiri dari beberapa komponen utama yang bekerja sama:
     ```bash
     python main.py
     ```
-    Perintah ini akan menjalankan server API FastAPI di `http://localhost:8000` dan bot Telegram secara bersamaan.
+    Perintah ini akan menjalankan server API FastAPI di `http://localhost:8010` dan bot Telegram secara bersamaan.
 
 2.  **Jalankan Frontend**: Buka terminal **kedua**, masuk ke direktori `static/`, dan jalankan server web sederhana.
     ```bash
