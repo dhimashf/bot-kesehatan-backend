@@ -1,55 +1,57 @@
-# Dockerfile Tunggal untuk Aplikasi PsikoBot (Backend + Bot)
-
-# ---- Builder Stage ----
-# Tahap ini digunakan untuk menginstal dependensi, termasuk yang memerlukan kompilasi.
-FROM python:3.11-slim AS builder
+# Menggunakan base image Python 3.11-slim
+FROM python:3.11-slim
 
 # Tetapkan direktori kerja di dalam container
 WORKDIR /app
 
-# Set variabel lingkungan untuk Python
+# Set variabel lingkungan untuk Python (mencegah file .pyc dan buffering)
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Install dependensi sistem yang mungkin dibutuhkan (misal untuk kompilasi beberapa library)
-RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /var/lib/apt/lists/*
+# Install dependensi sistem:
+# - 'gcc' & 'build-essential': Untuk mengkompilasi beberapa paket Python
+# - 'curl': Untuk healthcheck
+# - 'libpq5': Runtime library yang dibutuhkan oleh psycopg2 (PostgreSQL)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    build-essential \
+    curl \
+    libpq5 \
+  && rm -rf /var/lib/apt/lists/*
 
-# Buat virtual environment di dalam builder
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+# Upgrade pip dan salin file requirements.txt
+RUN pip install --no-cache-dir --upgrade pip
+COPY requirements.txt .
 
-# Salin file requirements dan install dependensi ke dalam venv
-COPY requirements.txt ./
-RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+# Install semua paket Python dari requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
 
-# Salin seluruh kode aplikasi ke dalam container
+# Salin semua kode aplikasi Anda ke dalam container
 COPY . .
 
-# ---- Runtime Stage ----
-# Tahap ini adalah image akhir yang minimalis untuk produksi.
-FROM python:3.11-slim AS runtime
-WORKDIR /app
+# ===================================================================
+# PERBAIKAN: Buat direktori cache SEBELUM beralih ke user non-root
+# ===================================================================
+RUN mkdir -p /app/cache && chmod -R 777 /app/cache
 
-# Buat group dan user non-root untuk menjalankan aplikasi
+# Set environment variables untuk Hugging Face cache
+ENV HF_HOME=/app/cache
+ENV SENTENCE_TRANSFORMERS_HOME=/app/cache
+ENV TRANSFORMERS_CACHE=/app/cache
+ENV HF_HUB_DISABLE_SYMLINKS_WARNING=1
+
+# Buat group dan user non-root untuk keamanan
 RUN groupadd --system app && useradd --system --gid app app
-
-# Install curl untuk healthcheck
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
-
-# Salin virtual environment yang sudah berisi dependensi dari tahap builder
-COPY --from=builder /opt/venv /opt/venv
-# Salin kode aplikasi dari tahap builder
-COPY --from=builder /app /app
-
-# Berikan kepemilikan direktori aplikasi kepada user non-root
 RUN chown -R app:app /app
 
-# Atur PATH untuk menggunakan Python dari venv dan tambahkan /app ke PYTHONPATH
-ENV PATH="/opt/venv/bin:$PATH"
+# Atur PYTHONPATH agar Python bisa menemukan modul di /app
 ENV PYTHONPATH=/app
 
 # Ganti ke user non-root
 USER app
 
-# Perintah untuk menjalankan aplikasi utama yang berisi backend dan bot
+# Expose port
+EXPOSE 8010
+
+# Perintah default untuk menjalankan aplikasi Anda
 CMD ["python", "main.py"]

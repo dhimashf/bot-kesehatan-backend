@@ -313,6 +313,7 @@ class ProfilingService:
         # NAQ-R
         self.naqr_questions = NAQR_QUESTIONS
         self.naqr_options = NAQR_LIKERT_OPTIONS
+        self.NAQR_BULLYING_EXPERIENCE_OPTIONS = NAQR_BULLYING_EXPERIENCE_OPTIONS
         self.naqr_subscales = NAQR_SUBSCALES
         # K10
         self.k10_questions = K10_QUESTIONS
