@@ -1,9 +1,10 @@
 import psycopg2
 from psycopg2 import pool
-from psycopg2.extras import DictCursor # GANTI: Impor DictCursor di atas
+from psycopg2.extras import DictCursor
 from typing import Optional, Any
 import threading
 import os
+import logging
 
 # Lock untuk memastikan inisialisasi pool thread-safe
 _pool_lock = threading.Lock()
@@ -11,36 +12,39 @@ _connection_pool = None
 
 class Database:
     """
-    PERBAIKAN: Kelas Database yang mengelola satu connection pool (singleton)
-    untuk PostgreSQL, sekarang menggunakan ThreadedConnectionPool (thread-safe).
+    Kelas Database yang mengelola satu connection pool (singleton) untuk PostgreSQL.
+    Ini thread-safe dan dirancang untuk digunakan di seluruh aplikasi.
     """
     def __init__(self, min_conn: int = 1, max_conn: int = 5):
         global _connection_pool
         if _connection_pool is None:
             with _pool_lock:
                 if _connection_pool is None:
+                    logging.info("✅ Menggunakan DATABASE_URL untuk koneksi pool.")
+                    # SOLUSI: Gunakan DATABASE_URL secara langsung jika ada.
+                    # Ini adalah cara yang paling andal dan standar.
                     try:
                         dsn = os.getenv("DATABASE_URL")
-                        if not dsn:
-                            print("DATABASE_URL not found, falling back to individual DB variables.")
-                            dsn = (
-                                f"dbname={os.getenv('DB_NAME', 'kesehatan')} "
-                                f"user={os.getenv('DB_USER', 'postgres')} "
-                                f"password={os.getenv('DB_PASSWORD', 'password')} "
-                                f"host={os.getenv('DB_HOST', 'db')} "
-                                f"port={os.getenv('DB_PORT', '5432')}"
+                        if dsn:
+                            _connection_pool = psycopg2.pool.ThreadedConnectionPool(
+                                min_conn, max_conn, dsn=dsn
                             )
-                        
-                        # GANTI: Gunakan ThreadedConnectionPool. Ini WAJIB untuk bot
-                        # karena bot berjalan di banyak thread. SimpleConnectionPool
-                        # akan menyebabkan error acak.
-                        _connection_pool = psycopg2.pool.ThreadedConnectionPool(
-                            min_conn, max_conn, dsn=dsn
-                        )
-                        print("✅ Koneksi pool PostgreSQL (Threaded) berhasil dibuat.")
-                    
+                        else:
+                            # Fallback jika DATABASE_URL tidak ada (untuk development lokal)
+                            logging.warning("DATABASE_URL tidak ditemukan, menggunakan variabel DB individual.")
+                            db_params = {
+                                'dbname': os.getenv('DB_NAME', 'kesehatan'),
+                                'user': os.getenv('DB_USER', 'postgres'),
+                                'password': os.getenv('DB_PASSWORD', 'password'),
+                                'host': os.getenv('DB_HOST', 'db'),
+                                'port': int(os.getenv('DB_PORT', '5432'))
+                            }
+                            _connection_pool = psycopg2.pool.ThreadedConnectionPool(
+                                min_conn, max_conn, **db_params
+                            )
+                        logging.info("✅ Koneksi pool PostgreSQL berhasil dibuat.")
                     except (Exception, psycopg2.OperationalError) as e:
-                        print(f"❌ GAGAL terhubung ke PostgreSQL: {e}")
+                        logging.error(f"❌ GAGAL membuat koneksi pool ke PostgreSQL: {e}")
                         raise
 
         self.pool = _connection_pool
@@ -50,8 +54,7 @@ class Database:
     def __enter__(self):
         """Memungkinkan penggunaan 'with Database() as db:'."""
         self.conn = self.pool.getconn()
-        # GANTI: Pastikan Anda mengimpor DictCursor di atas
-        self.cursor = self.conn.cursor(cursor_factory=DictCursor) 
+        self.cursor = self.conn.cursor(cursor_factory=DictCursor)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -105,7 +108,7 @@ class Database:
         except (Exception, psycopg2.Error) as e:
             if conn:
                 conn.rollback() # Batalkan jika ada error
-            print(f"Error executing query: {e}")
+            logging.error(f"Error executing query: {e}", exc_info=True)
             raise e # Lemparkan error agar bisa ditangani
         
         finally:
@@ -130,7 +133,7 @@ class Database:
         RETURNING id;
         """
         values = (email, hashed_password)
-        # GANTI: Gunakan fetch='returning' agar lebih jelas
+        # Gunakan fetch='returning' agar lebih jelas
         return self.execute_query(sql, values, fetch='returning')
 
     def insert_or_update_profile(self, user_id: int, biodata: dict):
@@ -178,7 +181,7 @@ class Database:
             health_data['user_id'], health_data['who5_total'], health_data['gad7_total'], health_data['mbi_emosional_total'],
             health_data['mbi_sinis_total'], health_data['mbi_pencapaian_total'], health_data['naqr_pribadi_total'], health_data['naqr_pekerjaan_total'], health_data['naqr_intimidasi_total'], health_data['k10_total']
         )
-        # GANTI: Gunakan fetch='returning'
+        # Gunakan fetch='returning'
         return self.execute_query(sql, values, fetch='returning')
 
     # --- Metode GET (SELECT) sudah benar ---
@@ -197,6 +200,16 @@ class Database:
     def get_all_health_results(self, user_id: int) -> list:
         return self.execute_query("SELECT * FROM health_results WHERE user_id=%s ORDER BY created_at DESC", (user_id,), fetch='all')
 
+    # --- Admin Get Methods ---
+    def get_all_users(self) -> list:
+        return self.execute_query("SELECT id, email, role, created_at FROM users ORDER BY id", fetch='all')
+
+    def get_all_profiles(self) -> list:
+        return self.execute_query("SELECT p.*, u.email FROM profiles p JOIN users u ON p.user_id = u.id ORDER BY p.user_id", fetch='all')
+
+    def get_all_health_results_admin(self) -> list:
+        return self.execute_query("SELECT hr.*, u.email FROM health_results hr JOIN users u ON hr.user_id = u.id ORDER BY hr.created_at DESC", fetch='all')
+
     # --- PERBAIKAN: Sederhanakan metode DELETE dan UPDATE ---
     def delete_health_result_by_id(self, result_id: int, user_id: int) -> bool:
         """PERBAIKAN: Dibuat konsisten menggunakan execute_query."""
@@ -205,7 +218,7 @@ class Database:
             rowcount = self.execute_query(query, (result_id, user_id))
             return rowcount > 0 # True jika 1 baris (atau lebih) terhapus
         except Exception as e:
-            print(f"Error deleting health result: {e}")
+            logging.error(f"Error deleting health result: {e}")
             return False
 
     def update_user_password(self, user_id: int, hashed_password: str) -> bool:
@@ -215,5 +228,5 @@ class Database:
             rowcount = self.execute_query(query, (hashed_password, user_id))
             return rowcount > 0 # True jika 1 baris (atau lebih) ter-update
         except Exception as e:
-            print(f"Error updating password for user {user_id}: {e}")
+            logging.error(f"Error updating password for user {user_id}: {e}")
             return False

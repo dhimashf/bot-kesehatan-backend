@@ -41,7 +41,7 @@ ENV TRANSFORMERS_CACHE=/app/cache
 ENV HF_HUB_DISABLE_SYMLINKS_WARNING=1
 
 # Buat group dan user non-root untuk keamanan
-RUN groupadd --system app && useradd --system --gid app app
+RUN groupadd --system app && useradd --system --gid app --home-dir /app app
 RUN chown -R app:app /app
 
 # Atur PYTHONPATH agar Python bisa menemukan modul di /app

@@ -11,6 +11,8 @@ from core.services.openrouter_service import openrouter_service
 from common.data.kitab_loader import kitab_loader
 from core.services.profiling_service import profiling_service
 from backend.services import web_auth_service, user_service
+from core.services.database import Database
+
 
 # --- State Management with Enums ---
 # This makes the code more readable and less error-prone than using range().
