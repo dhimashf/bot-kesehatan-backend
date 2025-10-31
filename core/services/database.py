@@ -78,44 +78,46 @@ class Database:
                 self.pool.putconn(self.conn)
 
     def execute_query(self, query, params=None, fetch=None):
-        """
-        PERBAIKAN: Disederhanakan untuk menangani commit & rollback dengan benar.
-        """
         conn = None
-        cursor = None
-        try:
-            conn = self.pool.getconn()
-            cursor = conn.cursor(cursor_factory=DictCursor)
-            
-            cursor.execute(query, params)
-            
-            if fetch == 'one':
-                conn.commit() # Commit untuk SELECT (diperlukan di beberapa mode)
-                return cursor.fetchone()
-            elif fetch == 'all':
-                conn.commit() # Commit untuk SELECT
-                return cursor.fetchall()
-            elif fetch == 'returning':
-                # Mode baru untuk mengambil ID dari RETURNING
+        for attempt in range(2): # Coba maksimal 2 kali
+            try:
+                conn = self.pool.getconn()
+                with conn.cursor(cursor_factory=DictCursor) as cursor:
+                    cursor.execute(query, params)
+                    
+                    if fetch == 'one':
+                        result = cursor.fetchone()
+                    elif fetch == 'all':
+                        result = cursor.fetchall()
+                    elif fetch == 'returning':
+                        row = cursor.fetchone()
+                        result = row[0] if row else None
+                    else:
+                        result = cursor.rowcount
+                
                 conn.commit()
-                result = cursor.fetchone()
-                return result[0] if result else None # Kembalikan nilai ID-nya saja
-            else:
-                # Default (INSERT, UPDATE, DELETE tanpa returning)
-                conn.commit()
-                return cursor.rowcount # Kembalikan jumlah baris yang terpengaruh
-        
-        except (Exception, psycopg2.Error) as e:
-            if conn:
-                conn.rollback() # Batalkan jika ada error
-            logging.error(f"Error executing query: {e}", exc_info=True)
-            raise e # Lemparkan error agar bisa ditangani
-        
-        finally:
-            if cursor:
-                cursor.close()
-            if conn:
-                self.pool.putconn(conn) # Kembalikan koneksi
+                return result
+
+            except psycopg2.OperationalError as e:
+                logging.warning(f"Attempt {attempt + 1}: OperationalError executing query: {e}. Retrying...")
+                if conn:
+                    # Jangan kembalikan koneksi yang rusak ke pool
+                    self.pool.putconn(conn, close=True)
+                    conn = None # Reset conn
+                if attempt == 1: # Jika percobaan terakhir gagal, lemparkan error
+                    raise e
+                # Jika bukan percobaan terakhir, loop akan berlanjut untuk mencoba lagi
+
+            except (Exception, psycopg2.Error) as e:
+                if conn:
+                    conn.rollback()
+                logging.error(f"Error executing query: {e}", exc_info=True)
+                raise e
+            
+            finally:
+                if conn:
+                    # Kembalikan koneksi yang baik ke pool
+                    self.pool.putconn(conn)
 
     def close(self):
         """Menutup seluruh connection pool. Panggil saat aplikasi berhenti."""
