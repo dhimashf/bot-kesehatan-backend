@@ -235,6 +235,13 @@ NAQR_SUBSCALES = {
     "intimidasi": [7,10,12,17] # index 8,11,13,18 (1-based)
 }
 
+NAQR_CATEGORY = [
+    (33, "Rendah / Tidak ada"),
+    (55, "Sedang"),
+    (77, "Tinggi"),
+    (999, "Sangat tinggi") # Batas atas untuk skor >= 78
+]
+
 
 from core.services.database import Database
 from passlib.context import CryptContext
@@ -315,6 +322,7 @@ class ProfilingService:
         self.naqr_options = NAQR_LIKERT_OPTIONS
         self.NAQR_BULLYING_EXPERIENCE_OPTIONS = NAQR_BULLYING_EXPERIENCE_OPTIONS
         self.naqr_subscales = NAQR_SUBSCALES
+        self.naqr_category = NAQR_CATEGORY
         # K10
         self.k10_questions = K10_QUESTIONS
         self.k10_options = K10_LIKERT_OPTIONS
@@ -518,12 +526,15 @@ class ProfilingService:
         pribadi = health_result.get('naqr_pribadi_total', 0)
         pekerjaan = health_result.get('naqr_pekerjaan_total', 0)
         intimidasi = health_result.get('naqr_intimidasi_total', 0)
-        total = pribadi + pekerjaan + intimidasi
+        total_score = pribadi + pekerjaan + intimidasi
+        category = self.get_naqr_category_from_total(total_score)
+
         return (
             f"Perundungan Pribadi: {pribadi}\n"
             f"Perundungan Pekerjaan: {pekerjaan}\n" # K10 is now before MBI
             f"Intimidasi: {intimidasi}\n" # K10 is now before MBI
-            f"Total Skor: {total}" # K10 is now before MBI
+            f"Total Skor: {total_score}\n"
+            f"Kategori: *{category}*"
         )
 
     def get_naqr_question(self, idx):
@@ -543,12 +554,24 @@ class ProfilingService:
         pekerjaan = sum([scores[i] for i in self.naqr_subscales["pekerjaan"]])
         intimidasi = sum([scores[i] for i in self.naqr_subscales["intimidasi"]])
         total = sum(scores)
+        category = self.get_naqr_category_from_total(total)
         return {
             "pribadi": pribadi,
             "pekerjaan": pekerjaan,
             "intimidasi": intimidasi,
-            "total": total
+            "total": total,
+            "category": category
         }
+
+    def get_naqr_category_from_total(self, total_score: int) -> str:
+        """Mendapatkan kategori NAQ-R dari total skor yang sudah dihitung."""
+        if total_score <= 33:
+            return self.naqr_category[0][1]
+        elif total_score <= 55:
+            return self.naqr_category[1][1]
+        elif total_score <= 77:
+            return self.naqr_category[2][1]
+        return self.naqr_category[3][1] # >= 78
 
     # K10
     def get_k10_keyboard(self):

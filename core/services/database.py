@@ -210,6 +210,7 @@ class Database:
     def get_all_health_results_admin(self) -> list:
         return self.execute_query("SELECT hr.*, u.email FROM health_results hr JOIN users u ON hr.user_id = u.id ORDER BY hr.created_at DESC", fetch='all')
 
+
     # --- PERBAIKAN: Sederhanakan metode DELETE dan UPDATE ---
     def delete_health_result_by_id(self, result_id: int, user_id: int) -> bool:
         """PERBAIKAN: Dibuat konsisten menggunakan execute_query."""

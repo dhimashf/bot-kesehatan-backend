@@ -55,7 +55,7 @@ def login_for_access_token(
     # Create the access token
     access_token_expires = timedelta(minutes=web_auth_service.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = web_auth_service.create_access_token(
-        data={"sub": user['email'], "user_id": user['id']}, expires_delta=access_token_expires
+        data={"sub": user['email'], "id": user['id'], "role": user['role']}, expires_delta=access_token_expires
     )
     
     return {"access_token": access_token, "token_type": "bearer"}

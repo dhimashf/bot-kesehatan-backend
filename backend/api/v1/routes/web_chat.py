@@ -25,8 +25,11 @@ async def handle_web_chat(
     The user is identified via the token, not the request body.
     """
     user_profile = get_user_full_profile_by_id(db, current_user.id)
-    if not user_profile:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
+    if current_user.get('role') != 'admin':
+        if not user_profile:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
+        if not user_profile.get("health_results"):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Please complete the questionnaire before using the chat.")
 
     answer = await openrouter_service.get_Psiko_answer(request.message, profile=user_profile)
     return ChatResponse(response=answer)

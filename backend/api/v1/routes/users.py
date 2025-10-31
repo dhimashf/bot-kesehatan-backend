@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 
 from backend.services import web_auth_service, user_service
-from backend.api.v1.schemas.user import User, UserProfile, LatestHealthResult, FullUserProfileResponse, HealthResultPayload, HealthResultSummary
+from backend.api.v1.schemas.user import User, UserProfile, FullUserProfileResponse, HealthResultPayload, HealthResultSummary, HealthResultBase
 from core.services.profiling_service import profiling_service
 
 router = APIRouter()
@@ -15,12 +15,15 @@ async def read_users_me(current_user: dict = Depends(web_auth_service.get_curren
     return current_user
 
 @router.get("/profile/status")
-def get_user_profile_status(current_user: dict = Depends(web_auth_service.get_current_active_user)):
+def get_user_profile_status(
+    current_user: dict = Depends(web_auth_service.get_current_active_user),
+    db: web_auth_service.Database = Depends(web_auth_service.get_db)
+):
     """
     Check if the user has completed their identity profile and has at least one health result.
     """
     user_id = current_user.get("id")
-    status = user_service.check_user_profile_status(user_id)
+    status = user_service.check_user_profile_status(db, user_id)
     return status
 
 @router.get("/profile/full", response_model=FullUserProfileResponse)
@@ -57,6 +60,9 @@ def get_user_full_profile(
             mbi_cyn_cat = profiling_service.get_mbi_category('sinis', mbi_sinis_total)
             mbi_pa_cat = profiling_service.get_mbi_category('pencapaian', mbi_pencapaian_total)
 
+            naqr_total = naqr_pribadi_total + naqr_pekerjaan_total + naqr_intimidasi_total
+            naqr_cat = profiling_service.get_naqr_category_from_total(naqr_total)
+
             processed_hr = hr.copy()
             processed_hr.update({
                 "who5_category": who5_cat,
@@ -66,7 +72,8 @@ def get_user_full_profile(
                 "mbi_sinis_category": mbi_cyn_cat,
                 "mbi_pencapaian_category": mbi_pa_cat,
                 "mbi_total": mbi_emosional_total + mbi_sinis_total + mbi_pencapaian_total,
-                "naqr_total": naqr_pribadi_total + naqr_pekerjaan_total + naqr_intimidasi_total
+                "naqr_total": naqr_total,
+                "naqr_category": naqr_cat
             })
             processed_results.append(processed_hr)
         full_profile_data["health_results"] = processed_results
@@ -161,6 +168,9 @@ def submit_health_results(
     _, who5_interp = profiling_service.get_who5_result([payload.who5_total])
     _, gad7_interp = profiling_service.get_gad7_result([payload.gad7_total])
     _, k10_interp = profiling_service.get_k10_result([payload.k10_total])
+    
+    naqr_total = payload.naqr_pribadi_total + payload.naqr_pekerjaan_total + payload.naqr_intimidasi_total
+    naqr_interp = profiling_service.get_naqr_category_from_total(naqr_total)
 
     summary = {
         "WHO-5": {"score": payload.who5_total, "interpretation": who5_interp},
@@ -168,9 +178,7 @@ def submit_health_results(
         "MBI-EE": {"score": mbi_result['emosional'][0], "interpretation": mbi_result['emosional'][1]},
         "MBI-CYN": {"score": mbi_result['sinis'][0], "interpretation": mbi_result['sinis'][1]},
         "MBI-PA": {"score": mbi_result['pencapaian'][0], "interpretation": mbi_result['pencapaian'][1]},
-        "NAQ-R Pribadi": {"score": payload.naqr_pribadi_total, "interpretation": "N/A"},
-        "NAQ-R Pekerjaan": {"score": payload.naqr_pekerjaan_total, "interpretation": "N/A"},
-        "NAQ-R Intimidasi": {"score": payload.naqr_intimidasi_total, "interpretation": "N/A"},
+        "NAQ-R Total": {"score": naqr_total, "interpretation": naqr_interp},
         "K-10": {"score": payload.k10_total, "interpretation": k10_interp},
     }
 
@@ -179,16 +187,121 @@ def submit_health_results(
 @router.delete("/profile/results/{result_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_health_result(
     result_id: int,
-    current_user: dict = Depends(web_auth_service.get_current_active_user)
+    current_user: dict = Depends(web_auth_service.get_current_active_user),
+    db: web_auth_service.Database = Depends(web_auth_service.get_db)
 ):
     """
     Delete a specific health result entry by its ID.
     Ensures that a user can only delete their own results.
     """
     user_id = current_user.get("id")
-    from core.services.database import Database
-    db = Database()
     success = db.delete_health_result_by_id(result_id, user_id)
     if not success:
         raise HTTPException(status_code=404, detail="Result not found or you do not have permission to delete it.")
     return
+
+# --- Admin Routes ---
+
+@router.get("/admin/all-users", response_model=List[User], tags=["Admin"])
+def get_all_users(
+    admin_user: dict = Depends(web_auth_service.get_current_admin_user),
+    db: web_auth_service.Database = Depends(web_auth_service.get_db)
+):
+    """Get all users. Requires admin privileges."""
+    users_data = db.get_all_users()
+    # Konversi setiap baris (yang mungkin berupa DictRow) menjadi dictionary standar
+    return [dict(user) for user in users_data]
+
+@router.get("/admin/all-profiles", tags=["Admin"])
+def get_all_profiles(
+    admin_user: dict = Depends(web_auth_service.get_current_admin_user),
+    db: web_auth_service.Database = Depends(web_auth_service.get_db)
+):
+    """Get all user profiles. Requires admin privileges."""
+    return db.get_all_profiles()
+
+@router.get("/admin/all-health-results", tags=["Admin"])
+def get_all_health_results(
+    admin_user: dict = Depends(web_auth_service.get_current_admin_user),
+    db: web_auth_service.Database = Depends(web_auth_service.get_db)
+):
+    """Get all health results from all users. Requires admin privileges."""
+    return db.get_all_health_results_admin()
+
+@router.get("/admin/profile/{user_id}", response_model=FullUserProfileResponse, tags=["Admin"])
+def get_user_profile_by_id_admin(
+    user_id: int,
+    admin_user: dict = Depends(web_auth_service.get_current_admin_user),
+    db: web_auth_service.Database = Depends(web_auth_service.get_db)
+):
+    """
+    Get a specific user's full profile by their ID. Requires admin privileges.
+    """
+    full_profile_data = web_auth_service.get_user_full_profile_by_id(db, user_id)
+
+    # Jika tidak ada data sama sekali (bahkan akun user tidak ada)
+    if not full_profile_data:
+        raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found.")
+
+    # Proses hasil kesehatan untuk menambahkan interpretasi/kategori (logika yang sama dengan /profile/full)
+    if full_profile_data.get("health_results"):
+        processed_results = []
+        for hr in full_profile_data["health_results"]:
+            who5_total = hr.get('who5_total', 0)
+            gad7_total = hr.get('gad7_total', 0)
+            k10_total = hr.get('k10_total', 0)
+            mbi_emosional_total = hr.get('mbi_emosional_total', 0)
+            mbi_sinis_total = hr.get('mbi_sinis_total', 0)
+            mbi_pencapaian_total = hr.get('mbi_pencapaian_total', 0)
+            naqr_pribadi_total = hr.get('naqr_pribadi_total', 0)
+            naqr_pekerjaan_total = hr.get('naqr_pekerjaan_total', 0)
+            naqr_intimidasi_total = hr.get('naqr_intimidasi_total', 0)
+
+            naqr_total = naqr_pribadi_total + naqr_pekerjaan_total + naqr_intimidasi_total
+
+            processed_hr = dict(hr) # Konversi ke dict untuk dimodifikasi
+            processed_hr.update({
+                "who5_category": profiling_service.get_who5_category_from_total(who5_total),
+                "gad7_category": profiling_service.get_gad7_category_from_total(gad7_total),
+                "k10_category": profiling_service.get_k10_category_from_total(k10_total),
+                "mbi_emosional_category": profiling_service.get_mbi_category('emosional', mbi_emosional_total),
+                "mbi_sinis_category": profiling_service.get_mbi_category('sinis', mbi_sinis_total),
+                "mbi_pencapaian_category": profiling_service.get_mbi_category('pencapaian', mbi_pencapaian_total),
+                "mbi_total": mbi_emosional_total + mbi_sinis_total + mbi_pencapaian_total,
+                "naqr_total": naqr_total,
+                "naqr_category": profiling_service.get_naqr_category_from_total(naqr_total)
+            })
+            processed_results.append(processed_hr)
+        full_profile_data["health_results"] = processed_results
+
+    # Tentukan status penyelesaian untuk kenyamanan frontend
+    biodata_completed = full_profile_data.get("biodata") is not None
+    health_results_completed = bool(full_profile_data.get("health_results"))
+
+    return FullUserProfileResponse(
+        biodata=full_profile_data.get("biodata"),
+        health_results=full_profile_data.get("health_results"),
+        biodata_completed=biodata_completed,
+        health_results_completed=health_results_completed
+    )
+    return
+
+@router.get("/admin/health-results/{user_id}", response_model=List[HealthResultBase], tags=["Admin"])
+def get_health_results_by_user_id_admin(
+    user_id: int,
+    admin_user: dict = Depends(web_auth_service.get_current_admin_user),
+    db: web_auth_service.Database = Depends(web_auth_service.get_db)
+):
+    """
+    Get all health results for a specific user by their ID. Requires admin privileges.
+    """
+    # Verifikasi apakah pengguna ada untuk memberikan pesan error yang jelas
+    user = db.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found.")
+
+    # Gunakan kembali metode yang sudah ada untuk mengambil semua hasil
+    results = db.get_all_health_results(user_id)
+    # SOLUSI: Konversi setiap baris (yang mungkin berupa DictRow/tuple) menjadi dictionary standar
+    # Ini memastikan data cocok dengan response_model=List[HealthResultBase]
+    return [dict(result) for result in results]

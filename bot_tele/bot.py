@@ -204,6 +204,7 @@ class PsikoBot:
         # Set profile di context.user_data
         profile = self.get_user_profile(context)
         profile['db_user_id'] = user['id']
+        profile['role'] = user['role'] # Simpan role pengguna
         # Pastikan biodata selalu berupa dict, bukan None
         profile['biodata'] = full_profile.get('biodata') or {}
         profile['biodata_completed'] = bool(full_profile.get('biodata'))
@@ -554,6 +555,7 @@ class PsikoBot:
                 "completed": False,
                 "biodata_completed": False,
                 "db_user_id": None,
+                "role": "user", # Default role
                 "biodata": {}
             }
         return context.user_data["profile"]
@@ -630,8 +632,9 @@ class PsikoBot:
 
             # Check if user has completed profiling
             profile = self.get_user_profile(context)
-            if not profile.get("completed"):
-                await update.message.reply_text( # type: ignore
+            # Admin dikecualikan dari keharusan mengisi kuesioner
+            if not profile.get("completed") and profile.get("role") != "admin":
+                await update.message.reply_text(
                     "Silakan selesaikan profiling terlebih dahulu dengan /start",
                     parse_mode='Markdown'
                 )
@@ -807,12 +810,13 @@ class PsikoBot:
             f"Kelelahan Emosional: {mbi_result['emosional'][0]} ({mbi_result['emosional'][1]})\n"
             f"Sikap Sinis: {mbi_result['sinis'][0]} ({mbi_result['sinis'][1]})\n"
             f"Pencapaian Pribadi: {mbi_result['pencapaian'][0]} ({mbi_result['pencapaian'][1]})\n"
-            f"Total Skor: {mbi_result['total'][0]} ({mbi_result['total'][1]})\n\n"
+            f"Total Skor: {mbi_result['total'][0]}\n"
+            f"Kategori: *{mbi_result['total'][1]}*\n\n"
             f"*NAQ-R (Negative Acts Questionnaire-Revised)*\n"
             f"Perundungan Pribadi: {naqr_result['pribadi']}\n"
             f"Perundungan Pekerjaan: {naqr_result['pekerjaan']}\n"
             f"Intimidasi: {naqr_result['intimidasi']}\n"
-            f"Total Skor: {naqr_result['total']}\n"
+            f"Total Skor: {naqr_result['total']} | Kategori: *{naqr_result['category']}*\n"
         )
         # Add Q80, Q81, Q82 answers to summary if available in profile
         if profile.get("naqr_q80_answer"):

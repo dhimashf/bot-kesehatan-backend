@@ -14,7 +14,7 @@ from common.config.settings import settings
 # --- Database Dependency ---
 def get_db():
     """FastAPI dependency to create and clean up a database session."""
-    db = Database(host=DBConfig.HOST, user=DBConfig.USER, password=DBConfig.PASSWORD, database=DBConfig.NAME)
+    db = Database()
     try:
         yield db
     finally:
@@ -67,15 +67,28 @@ async def get_current_active_user(token: str = Depends(oauth2_scheme)) -> dict:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
-        user_id: int = payload.get("user_id")
-        if email is None or user_id is None:
+        user_id: int = payload.get("id") # Diperbarui agar konsisten
+        role: str = payload.get("role")
+        if email is None or user_id is None or role is None:
             raise credentials_exception
         
         # Return a dictionary that matches the User schema and other expectations
-        return {"email": email, "id": user_id}
+        return {"email": email, "id": user_id, "role": role}
 
     except JWTError:
         raise credentials_exception
+
+async def get_current_admin_user(current_user: dict = Depends(get_current_active_user)) -> dict:
+    """
+    Dependency to ensure the current user is an admin.
+    Raises a 403 Forbidden error if the user is not an admin.
+    """
+    if current_user.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The user does not have the required permissions",
+        )
+    return current_user
 
 # --- Core Authentication Logic ---
 def authenticate_user(db: Database, email: str, password:str) -> Optional[dict]:
@@ -112,9 +125,10 @@ def get_user_full_profile_by_id(db: Database, user_id: int) -> dict:
 
     # Add user's email to the biodata profile for frontend display
     if profile_data:
-        # Pastikan profile_data adalah dictionary yang bisa diubah
-        if isinstance(profile_data, dict):
-            profile_data['email'] = user_account.get('email')
+        # SOLUSI: Konversi DictRow (atau tipe data serupa) menjadi dictionary standar.
+        # Ini memastikan Pydantic dapat memetakannya dengan benar.
+        profile_data = dict(profile_data)
+        profile_data['email'] = user_account.get('email')
 
     # Construct the profile dictionary
     response = {
