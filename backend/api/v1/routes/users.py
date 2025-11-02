@@ -228,6 +228,48 @@ def get_all_health_results(
     """Get all health results from all users. Requires admin privileges."""
     return db.get_all_health_results_admin()
 
+@router.get("/admin/all-results-with-biodata", tags=["Admin"])
+def get_all_results_with_biodata(
+    admin_user: dict = Depends(web_auth_service.get_current_admin_user),
+    db: web_auth_service.Database = Depends(web_auth_service.get_db)
+):
+    """
+    Get all health results joined with user biodata. Requires admin privileges.
+    Returns a list of objects, each containing a flattened combination of health result and biodata.
+    """
+    all_results = db.get_all_results_with_biodata_admin()
+
+    # A dictionary to group results by user_id
+    users_data = {}
+
+    # Define which keys belong to biodata vs. health_results
+    biodata_keys = [
+        'inisial', 'no_wa', 'usia', 'jenis_kelamin', 'pendidikan',
+        'lama_bekerja', 'status_pegawai', 'jabatan', 'jabatan_lain',
+        'unit_ruangan', 'status_perkawinan', 'status_kehamilan', 'jumlah_anak',
+        'email'
+    ]
+
+    for row in all_results:
+        user_id = row['user_id']
+
+        # If this is the first time we see this user, create their entry
+        if user_id not in users_data:
+            biodata = {key: row[key] for key in biodata_keys if key in row}
+            users_data[user_id] = {
+                "biodata": biodata,
+                "health_results": []
+            }
+
+        # Create the health_result object by excluding biodata keys
+        health_result = {key: val for key, val in row.items() if key not in biodata_keys}
+        
+        # Add the health result to the user's list
+        users_data[user_id]["health_results"].append(health_result)
+
+    # Convert the dictionary of users into a list for the final JSON response
+    return list(users_data.values())
+
 @router.get("/admin/profile/{user_id}", response_model=FullUserProfileResponse, tags=["Admin"])
 def get_user_profile_by_id_admin(
     user_id: int,

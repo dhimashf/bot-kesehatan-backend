@@ -212,6 +212,29 @@ class Database:
     def get_all_health_results_admin(self) -> list:
         return self.execute_query("SELECT hr.*, u.email FROM health_results hr JOIN users u ON hr.user_id = u.id ORDER BY hr.created_at DESC", fetch='all')
 
+    def get_all_results_with_biodata_admin(self) -> list:
+        """
+        Fetches all health results and joins them with corresponding biodata and user email.
+        This is an admin-only function.
+        """
+        sql = """
+            SELECT
+                p.inisial, p.no_wa, p.usia, p.jenis_kelamin, p.pendidikan,
+                p.lama_bekerja, p.status_pegawai, p.jabatan, p.jabatan_lain,
+                p.unit_ruangan, p.status_perkawinan, p.status_kehamilan, p.jumlah_anak,
+                u.email,
+                hr.*
+            FROM
+                health_results hr
+            LEFT JOIN
+                profiles p ON hr.user_id = p.user_id
+            LEFT JOIN
+                users u ON hr.user_id = u.id
+            ORDER BY
+                hr.created_at DESC;
+        """
+        return self.execute_query(sql, fetch='all')
+
 
     # --- PERBAIKAN: Sederhanakan metode DELETE dan UPDATE ---
     def delete_health_result_by_id(self, result_id: int, user_id: int) -> bool:

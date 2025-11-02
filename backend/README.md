@@ -184,6 +184,9 @@ Mengelola data pengguna, profil (biodata), dan hasil kuesioner. Semua endpoint d
     -   **Kegunaan:** Menghapus riwayat hasil kuesioner tertentu milik pengguna.
     -   **Contoh Output:** Status `204 No Content` jika berhasil.
 
+### 4. Admin (`/api/v1/users/admin`)
+Endpoint ini hanya dapat diakses oleh pengguna dengan peran `admin`.
+
 ### 4. Chat
 Endpoint untuk interaksi dengan chatbot.
 
