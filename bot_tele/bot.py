@@ -197,6 +197,8 @@ class PsikoBot:
         # Ambil profil lengkap dari DB
         db = Database()
         try:
+            # Ambil status profil yang sudah divalidasi dari service
+            profile_status = user_service.check_user_profile_status(db, user['id'])
             full_profile = web_auth_service.get_user_full_profile_by_id(db, user['id'])
         finally:
             db.close()
@@ -205,15 +207,14 @@ class PsikoBot:
         profile = self.get_user_profile(context)
         profile['db_user_id'] = user['id']
         profile['role'] = user['role'] # Simpan role pengguna
-        # Pastikan biodata selalu berupa dict, bukan None
         profile['biodata'] = full_profile.get('biodata') or {}
-        profile['biodata_completed'] = bool(full_profile.get('biodata'))
+        profile['biodata_completed'] = profile_status.get('biodata_completed', False)
 
-        health_results = full_profile.get('health_results')
-        if health_results:
+        # Gunakan status dari service untuk keputusan
+        if profile_status.get('health_results_completed'):
             profile['completed'] = True
             # Simpan seluruh hasil kesehatan dari DB ke dalam profile
-            profile['health_results'] = health_results
+            profile['health_results'] = full_profile.get('health_results', [])
             await update.message.reply_text(
                 "Profil Anda telah dimuat. Anda dapat melanjutkan percakapan atau melihat ringkasan profil dengan /profile.\n\n"
             )
@@ -235,8 +236,9 @@ class PsikoBot:
             # Cari pertanyaan biodata pertama yang belum diisi
             next_idx = 1 # Mulai dari 'inisial' (index 1)
             for i, (field_name, _) in enumerate(profiling_service.BIODATA_FIELDS):
-                if i == 0: continue # Lewati email
-                if field_name not in context.user_data['biodata']:
+                # PERBAIKAN: Cek apakah field tidak ada ATAU nilainya kosong (None)
+                # Ini akan menangani kasus pengguna Google yang profilnya sudah ada tapi tidak lengkap.
+                if i > 0 and not context.user_data['biodata'].get(field_name):
                     next_idx = i
                     break
             else: # Jika semua sudah terisi (kasus aneh, tapi untuk keamanan)

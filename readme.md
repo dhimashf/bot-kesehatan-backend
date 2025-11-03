@@ -115,7 +115,12 @@ Sistem ini terdiri dari beberapa komponen utama yang bekerja sama:
     TELEGRAM_BOT_TOKEN=your-telegram-bot-token
     OPENROUTER_API_KEY=your-openrouter-api-key
 
-    # Konfigurasi JWT untuk otentikasi web
+    # Google OAuth2 Credentials (Opsional, untuk login via Google)
+    GOOGLE_CLIENT_ID=your-google-client-id
+    GOOGLE_CLIENT_SECRET=your-google-client-secret
+    GOOGLE_REDIRECT_URI=http://localhost:8010/api/v1/auth/google/callback
+    FRONTEND_IDENTITY_FORM_URL=http://localhost:3000/identity_form
+    FRONTEND_LOGIN_SUCCESS_URL=http://localhost:3000
     SECRET_KEY=your_super_secret_random_string_for_jwt
     ALGORITHM=HS256
     ACCESS_TOKEN_EXPIRE_MINUTES=1440 # 1 hari

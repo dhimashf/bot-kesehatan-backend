@@ -56,6 +56,25 @@ Endpoint ini menangani semua alur yang terkait dengan autentikasi pengguna dari 
     -   **Body (JSON):** `{"email": "user@example.com", "password": "new_secure_password"}`
     -   **Contoh Output (JSON):** `{"message": "Password has been set successfully. You can now log in."}`
 
+### 3. Autentikasi Google (`/api/v1/auth/google`)
+Endpoint ini menangani alur otentikasi menggunakan akun Google.
+
+-   **`GET /api/v1/auth/google/login`**
+    -   **Kegunaan:** Memulai alur login Google. Endpoint ini akan me-redirect pengguna ke halaman otentikasi Google.
+    -   **Aksi:** Frontend harus mengarahkan pengguna ke URL ini.
+
+-   **`GET /api/v1/auth/google/callback`**
+    -   **Kegunaan:** Endpoint internal yang dipanggil oleh Google setelah pengguna berhasil login. Endpoint ini akan memproses login, membuat token JWT, dan me-redirect pengguna kembali ke frontend dengan token tersebut.
+    -   **Aksi:** Tidak untuk dipanggil langsung oleh frontend.
+
+-   **`GET /api/v1/auth/google/me`**
+    -   **Kegunaan:** Sama seperti `/api/v1/users/me`, mendapatkan informasi pengguna yang sedang login. Endpoint ini berguna untuk memverifikasi token yang didapat dari alur Google Auth.
+    -   **Otentikasi:** Membutuhkan Header `Authorization: Bearer <token>`.
+    -   **Contoh Output (JSON):**
+        ```json
+        { "id": 1, "email": "user.google@example.com", "role": "user" }
+        ```
+
 ### 3. Pengguna & Profil (`/api/v1/users`)
 Mengelola data pengguna, profil (biodata), dan hasil kuesioner. Semua endpoint di sini **membutuhkan otentikasi** (Header `Authorization: Bearer <token>`).
 

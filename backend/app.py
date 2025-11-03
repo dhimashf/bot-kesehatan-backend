@@ -2,9 +2,11 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse
+from starlette.middleware.sessions import SessionMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from bot_tele.bot import psikobot
 from backend.api.v1 import api_router
+from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,12 @@ app = FastAPI(
     title="PsikoBot Backend",
     lifespan=lifespan
 )
+
+# --- Konfigurasi Session Middleware ---
+# Ini WAJIB untuk Authlib agar bisa menyimpan state OAuth2 di session.
+# Gunakan SECRET_KEY yang sama dengan JWT untuk menandatangani session cookie.
+app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
+# --- Akhir Konfigurasi Session ---
 
 # --- Konfigurasi CORS Middleware ---
 # Ini mengizinkan frontend (misalnya, yang berjalan di localhost:3000)

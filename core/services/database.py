@@ -126,7 +126,7 @@ class Database:
             _connection_pool.closeall()
             _connection_pool = None
 
-    def create_user_account(self, email: str, hashed_password: str) -> Optional[int]:
+    def create_user_account(self, email: str, hashed_password: Optional[str]) -> Optional[int]:
         """
         Creates a new user account.
         """
@@ -232,6 +232,34 @@ class Database:
                 users u ON hr.user_id = u.id
             ORDER BY
                 hr.created_at DESC;
+        """
+        return self.execute_query(sql, fetch='all')
+
+    def get_all_users_with_status_and_data_admin(self) -> list:
+        """
+        Query yang dioptimalkan untuk mengambil semua pengguna beserta biodata dan
+        riwayat kuesioner mereka dalam satu kali panggilan. Menggunakan LEFT JOIN.
+        """
+        sql = """
+        SELECT
+            u.id AS user_id,
+            u.email,
+            u.role,
+            p.inisial, p.no_wa, p.usia, p.jenis_kelamin, p.pendidikan,
+            p.lama_bekerja, p.status_pegawai, p.jabatan, p.jabatan_lain,
+            p.unit_ruangan, p.status_perkawinan, p.status_kehamilan, p.jumlah_anak,
+            hr.id AS health_result_id,
+            hr.who5_total, hr.gad7_total, hr.mbi_emosional_total, hr.mbi_sinis_total,
+            hr.mbi_pencapaian_total, hr.naqr_pribadi_total, hr.naqr_pekerjaan_total,
+            hr.naqr_intimidasi_total, hr.k10_total, hr.created_at
+        FROM
+            users u
+        LEFT JOIN
+            profiles p ON u.id = p.user_id
+        LEFT JOIN
+            health_results hr ON u.id = hr.user_id
+        ORDER BY
+            u.id, hr.created_at DESC;
         """
         return self.execute_query(sql, fetch='all')
 
