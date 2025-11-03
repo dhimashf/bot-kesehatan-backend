@@ -17,6 +17,13 @@ class Settings:
     OPENROUTER_REFERRER = "https://github.com/Psiko-bot"  # Bebas!
     OPENROUTER_TITLE = "Psiko Chatbot Indonesia"  # Bebas!
     
+    # Google OAuth Configuration
+    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+    GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+    GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI") # URL callback untuk backend
+    FRONTEND_IDENTITY_FORM_URL = os.getenv("FRONTEND_IDENTITY_FORM_URL") # URL form biodata di frontend
+    FRONTEND_LOGIN_SUCCESS_URL = os.getenv("FRONTEND_LOGIN_SUCCESS_URL") # URL dashboard/home setelah login berhasil
+
     # Application Configuration
     APP_HOST = os.getenv("APP_HOST", "0.0.0.0")
     APP_PORT = int(os.getenv("APP_PORT", 8010))

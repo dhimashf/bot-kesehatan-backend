@@ -234,41 +234,54 @@ def get_all_results_with_biodata(
     db: web_auth_service.Database = Depends(web_auth_service.get_db)
 ):
     """
-    Get all health results joined with user biodata. Requires admin privileges.
-    Returns a list of objects, each containing a flattened combination of health result and biodata.
+    Get all users with their profile completion status, biodata, and health results.
+    Requires admin privileges.
     """
-    all_results = db.get_all_results_with_biodata_admin()
-
-    # A dictionary to group results by user_id
-    users_data = {}
-
-    # Define which keys belong to biodata vs. health_results
+    # PENDEKATAN OPTIMAL: Gunakan satu query JOIN untuk mengambil semua data
+    all_data = db.get_all_users_with_status_and_data_admin()
+    
+    users_dict = {}
     biodata_keys = [
-        'inisial', 'no_wa', 'usia', 'jenis_kelamin', 'pendidikan',
-        'lama_bekerja', 'status_pegawai', 'jabatan', 'jabatan_lain',
-        'unit_ruangan', 'status_perkawinan', 'status_kehamilan', 'jumlah_anak',
-        'email'
+        'inisial', 'no_wa', 'usia', 'jenis_kelamin', 'pendidikan', 'lama_bekerja', 
+        'status_pegawai', 'jabatan', 'jabatan_lain', 'unit_ruangan', 
+        'status_perkawinan', 'status_kehamilan', 'jumlah_anak'
+    ]
+    health_result_keys = [
+        'health_result_id', 'who5_total', 'gad7_total', 'mbi_emosional_total', 
+        'mbi_sinis_total', 'mbi_pencapaian_total', 'naqr_pribadi_total', 
+        'naqr_pekerjaan_total', 'naqr_intimidasi_total', 'k10_total', 'created_at'
     ]
 
-    for row in all_results:
+    for row in all_data:
         user_id = row['user_id']
+        if user_id not in users_dict:
+            # Buat entri pengguna baru jika belum ada
+            biodata = {key: row[key] for key in biodata_keys if row[key] is not None}
+            biodata['user_id'] = user_id
+            biodata['email'] = row['email']
+            biodata['role'] = row['role']
 
-        # If this is the first time we see this user, create their entry
-        if user_id not in users_data:
-            biodata = {key: row[key] for key in biodata_keys if key in row}
-            users_data[user_id] = {
+            # Cek kelengkapan biodata
+            required_fields = [f for f in biodata_keys if f != 'jabatan_lain']
+            biodata_completed = all(row.get(field) is not None for field in required_fields)
+
+            users_dict[user_id] = {
+                "biodata_completed": biodata_completed,
+                "health_results_completed": False, # Default, akan di-update jika ada hasil
                 "biodata": biodata,
                 "health_results": []
             }
 
-        # Create the health_result object by excluding biodata keys
-        health_result = {key: val for key, val in row.items() if key not in biodata_keys}
-        
-        # Add the health result to the user's list
-        users_data[user_id]["health_results"].append(health_result)
+        # Tambahkan hasil kuesioner jika ada
+        if row['health_result_id'] is not None:
+            users_dict[user_id]['health_results_completed'] = True
+            health_result = {key: row[key] for key in health_result_keys}
+            # Ganti nama 'health_result_id' menjadi 'id' agar konsisten dengan skema
+            health_result['id'] = health_result.pop('health_result_id')
+            users_dict[user_id]['health_results'].append(health_result)
 
-    # Convert the dictionary of users into a list for the final JSON response
-    return list(users_data.values())
+    return list(users_dict.values())
+
 
 @router.get("/admin/profile/{user_id}", response_model=FullUserProfileResponse, tags=["Admin"])
 def get_user_profile_by_id_admin(
