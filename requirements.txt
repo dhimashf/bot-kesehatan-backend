@@ -13,3 +13,5 @@ email-validator==2.1.0.post1
 python-multipart==0.0.9
 passlib[argon2]
 python-jose[cryptography]==3.3.0
+Authlib>=1.6.5
+itsdangerous>=2.2.0
