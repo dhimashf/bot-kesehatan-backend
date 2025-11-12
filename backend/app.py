@@ -40,7 +40,9 @@ app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 origins = [
     "http://localhost:3000",  # Alamat server development frontend
     "http://127.0.0.1:3000",
-    "https://psiko.difunand.cloud" # Alternatif untuk localhost
+    "https://psiko.difunand.cloud",
+    "https://fe-psiko.difunand.cloud"
+# Alternatif untuk localhost
     # Anda bisa menambahkan alamat frontend produksi di sini nanti
     # "https://your-production-frontend.com",
 ]

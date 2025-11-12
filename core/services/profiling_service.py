@@ -334,7 +334,7 @@ class ProfilingService:
     # WHO-5
     def get_who5_keyboard(self):
         return InlineKeyboardMarkup([
-            [InlineKeyboardButton(f"{label} ({score})", callback_data=str(score))] for label, score in self.who5_options
+            [InlineKeyboardButton(label, callback_data=str(score))] for label, score in self.who5_options
         ])
 
     def get_who5_question(self, idx):
@@ -367,7 +367,7 @@ class ProfilingService:
     # GAD-7
     def get_gad7_keyboard(self):
         return InlineKeyboardMarkup([
-            [InlineKeyboardButton(f"{label} ({score})", callback_data=str(score))] for label, score in self.gad7_options
+            [InlineKeyboardButton(label, callback_data=str(score))] for label, score in self.gad7_options
         ])
 
     def get_gad7_question(self, idx):
@@ -450,7 +450,7 @@ class ProfilingService:
 
     def get_mbi_keyboard(self):
         return InlineKeyboardMarkup([
-            [InlineKeyboardButton(f"{label} ({score})", callback_data=str(score))] for label, score in self.mbi_options
+            [InlineKeyboardButton(label, callback_data=str(score))] for label, score in self.mbi_options
         ])
 
     def get_mbi_question(self, idx):
@@ -465,12 +465,21 @@ class ProfilingService:
         pencapaian = sum([scores[i] for i in self.mbi_subscales["pencapaian"]])
         total = sum(scores)
         def cat(val, scale):
+            # Menambahkan nama subskala ke label kategori
+            scale_name_map = {
+                "emosional": "Kelelahan Emosional",
+                "sinis": "Sikap Sinis",
+                "pencapaian": "Pencapaian Pribadi",
+                "total": "Burnout"
+            }
+            scale_name = scale_name_map.get(scale, scale.title())
             for lim, label in self.mbi_category[scale]:
                 if val <= lim:
-                    return label
-            return self.mbi_category[scale][-1][1]
+                    return f"{scale_name} {label}"
+            return f"{scale_name} {self.mbi_category[scale][-1][1]}"
         return {
-            "emosional": (emosional, cat(emosional, "emosional")),
+            # Menghapus .replace() karena penanganan prefix sudah benar di fungsi cat()
+            "emosional": (emosional, cat(emosional, "emosional")), 
             "sinis": (sinis, cat(sinis, "sinis")),
             "pencapaian": (pencapaian, cat(pencapaian, "pencapaian")),
             "total": (total, cat(total, "total"))
@@ -478,10 +487,15 @@ class ProfilingService:
 
     def get_mbi_category(self, scale: str, value: int) -> str:
         """Mendapatkan label kategori untuk subskala MBI tertentu berdasarkan skor."""
+        scale_name_map = {
+            "emosional": "Kelelahan Emosional", "sinis": "Sikap Sinis",
+            "pencapaian": "Pencapaian Pribadi", "total": "Burnout"
+        }
+        scale_name = scale_name_map.get(scale, scale.title())
         for lim, label in self.mbi_category[scale]:
             if value <= lim:
-                return label
-        return self.mbi_category[scale][-1][1]
+                return f"{scale_name} {label}"
+        return f"{scale_name} {self.mbi_category[scale][-1][1]}"
     # NAQ-R
     def get_naqr_keyboard_for_question(self, idx):
         """
@@ -490,7 +504,7 @@ class ProfilingService:
         """
         if idx < 22: # Pertanyaan NAQ-R utama (0-21)
             return InlineKeyboardMarkup([
-                [InlineKeyboardButton(f"{label} ({score})", callback_data=str(score))] for label, score in self.naqr_options
+                [InlineKeyboardButton(label, callback_data=str(score))] for label, score in self.naqr_options
             ])
         elif idx == 22: # Pertanyaan 80: Opsi pengalaman perundungan
             return InlineKeyboardMarkup([
@@ -565,18 +579,21 @@ class ProfilingService:
 
     def get_naqr_category_from_total(self, total_score: int) -> str:
         """Mendapatkan kategori NAQ-R dari total skor yang sudah dihitung."""
+        label = ""
         if total_score <= 33:
-            return self.naqr_category[0][1]
+            label = self.naqr_category[0][1]
         elif total_score <= 55:
-            return self.naqr_category[1][1]
+            label = self.naqr_category[1][1]
         elif total_score <= 77:
-            return self.naqr_category[2][1]
-        return self.naqr_category[3][1] # >= 78
+            label = self.naqr_category[2][1]
+        else: # >= 78
+            label = self.naqr_category[3][1]
+        return f"Perundungan {label}"
 
     # K10
     def get_k10_keyboard(self):
         return InlineKeyboardMarkup([
-            [InlineKeyboardButton(f"{label} ({score})", callback_data=str(score))] for label, score in self.k10_options
+            [InlineKeyboardButton(label, callback_data=str(score))] for label, score in self.k10_options
         ])
 
     def get_k10_question(self, idx):

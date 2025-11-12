@@ -64,17 +64,64 @@ Sistem ini terdiri dari beberapa komponen utama yang bekerja sama:
 
 ```
 .
-├── backend/         # Aplikasi FastAPI (API endpoints)
-├── bot_tele/        # Logika Bot Telegram (ConversationHandler, dll.)
-├── common/          # Modul bersama (konfigurasi, skema data)
-├── core/            # Layanan inti (database, RAG, profiling, LLM)
-├── static/          # Kode Frontend (HTML, JS, CSS) - untuk deployment terpisah
-├── main.py          # Titik masuk untuk development lokal
-├── Dockerfile       # Instruksi build image Docker
-├── docker-compose.yml # Orkestrasi container untuk produksi
-├── nginx/           # Konfigurasi Nginx sebagai reverse proxy
-└── requirements.txt # Dependensi Python
+├── src/                          # Direktori utama kode sumber
+│   ├── app.py                   # Aplikasi FastAPI utama
+│   ├── bot.py                   # Implementasi Bot Telegram
+│   ├── check_models.py          # Utilitas pengecekan model AI
+│   │
+│   ├── config/                  # Konfigurasi aplikasi
+│   │   ├── settings.py          # Pengaturan dan variabel environment
+│   │   └── __pycache__/         # Python cache
+│   │       └── settings.cpython-310.pyc
+│   │
+│   ├── data/                    # Manajemen data dan basis pengetahuan
+│   │   ├── kitab_loader.py      # Pemuat dan preprocessing data kitab
+│   │   ├── kitab.docx          # Sumber pengetahuan dalam format Word
+│   │   ├── __pycache__/        # Python cache
+│   │   │   └── kitab_loader.cpython-310.pyc
+│   │   │
+│   │   └── chromadb/           # Vector store untuk RAG
+│   │       ├── chroma.sqlite3   # Database ChromaDB
+│   │       └── collections/     # Koleksi embedding
+│   │           ├── 65c254f9-*/  # Collection 1
+│   │           │   ├── data_level0.bin
+│   │           │   ├── header.bin
+│   │           │   ├── length.bin
+│   │           │   └── link_lists.bin
+│   │           └── 7a69e578-*/  # Collection 2 (format sama)
+│   │
+│   ├── services/               # Layanan inti aplikasi
+│   │   ├── openrouter_embedding.py  # Layanan embedding teks
+│   │   ├── openrouter_service.py    # Integrasi dengan OpenRouter LLM
+│   │   ├── rag_service.py           # Implementasi RAG
+│   │   └── __pycache__/       # Python cache
+│   │       ├── openrouter_embedding.cpython-310.pyc
+│   │       ├── openrouter_service.cpython-310.pyc
+│   │       └── rag_service.cpython-310.pyc
+│   │
+│   ├── utils/                  # Utilitas dan helper
+│   │   ├── text_utils.py       # Fungsi pemrosesan teks
+│   │   └── __pycache__/       # Python cache
+│   │       └── text_utils.cpython-310.pyc
+│   │
+│   └── __pycache__/           # Python cache direktori utama
+│       └── app.cpython-310.pyc
+│
+├── main.py                    # Titik masuk aplikasi
+├── requirements.txt           # Dependensi Python
+├── Dockerfile                # Konfigurasi build Docker
+├── docker-compose.yml        # Orkestrasi container
+└── readme.md                # Dokumentasi proyek
 ```
+
+### 🗂️ Deskripsi Komponen Utama
+
+- **backend/**: Mengelola server API (FastAPI), termasuk semua endpoint, skema data, dan layanan bisnis spesifik untuk backend. `app.py` di sini bertindak sebagai titik masuk utama yang menjalankan server dan bot. isinya : /api/v1/routes/[text](backend/api/v1/routes/chat.py) [text](backend/api/v1/routes/google_auth.py) [text](backend/api/v1/routes/users.py) [text](backend/api/v1/routes/web_auth.py) [text](backend/api/v1/routes/web_chat.py), [text](backend/services/google_auth_service.py) [text](backend/services/user_service.py) [text](backend/services/web_auth_service.py) [text](backend/__init__.py) [text](backend/app.py), [text](backend/api/v1/schemas/chat.py) [text](backend/api/v1/schemas/user.py) [text](backend/api/v1/schemas/web_auth.py) [text](backend/api/v1/schemas/web_chat.py)
+- **bot_tele/**: Berisi logika inti dari bot Telegram, termasuk `ConversationHandler` untuk alur percakapan yang kompleks seperti pendaftaran dan pengisian kuesioner. isinya : [text](bot_tele/bot.py)
+- **common/**: Modul-modul yang digunakan bersama oleh komponen lain, seperti konfigurasi (`settings.py`), pemuat data, dan utilitas umum. isinya : [text](common/config/db_config.py) [text](common/config/settings.py) [text](common/data) [text](common/data/__pycache__) [text](common/data/chromadb) [text](common/data/kitab_loader.py) [text](common/data/kitab.pdf) [text](common/schemas) [text](common/schemas/__pycache__) [text](common/schemas/__init__.py) [text](common/schemas/users.py) [text](common/utils) [text](common/utils/__pycache__) [text](common/utils/__init__.py) [text](common/utils/text_utils.py) [text](common/validators) [text](common/validators/__pycache__) [text](common/validators/__init__.py) [text](common/validators/profiling_validator.py) [text](common/__init__.py)
+- **core/**: Layanan inti yang menjadi otak dari aplikasi, seperti koneksi database, integrasi dengan AI (OpenRouter), logika profiling, dan RAG. isinya : [text](core/services/database.py) [text](core/services/openrouter_embedding.py) [text](core/services/openrouter_service.py) [text](core/services/profiling_service.py) [text](core/services/rag_service.py)
+.dockerignore .env .gitignore build_rag_index.py docker-compose.yml Dockerfile main.py nginx.conf package-lock.json Procfile readme.md requirements.in requirements.txt
+### 🗂️ Deskripsi Komponen Utama
 
 ## 🚀 Instalasi dan Konfigurasi
 

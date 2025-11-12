@@ -595,7 +595,7 @@ class PsikoBot:
                 answer_label = label
                 break
         
-        return f"{question_text}\n\n*Jawaban Anda:* {answer_label} ({score})"
+        return f"{question_text}\n\n*Jawaban Anda:* {answer_label}"
 
     async def ask_gad7_question(self, update: Update, context: ContextTypes.DEFAULT_TYPE, idx: int):
         """Tampilkan pertanyaan GAD-7 ke user. Mengedit pesan jika dari callback, mengirim baru jika tidak."""
@@ -828,7 +828,7 @@ class PsikoBot:
         if profile.get("naqr_q82_answer"):
             summary += f"\n*Q82:* {profile['naqr_q82_answer']}"
 
-        summary += "\n\nSekarang Anda bisa bertanya tentang Psiko.\nKetik /help untuk melihat panduan lengkap."
+        summary += "Ketik /help untuk melihat panduan lengkap."
 
         await (update.message or update.callback_query.message).reply_text(summary, parse_mode='Markdown')
         return ConversationHandler.END

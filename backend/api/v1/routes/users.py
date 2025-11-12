@@ -113,19 +113,19 @@ def get_questionnaire_data(q_type: str, current_user: dict = Depends(web_auth_se
 
     if q_type == 'who5':
         questions = profiling_service.who5_questions
-        options = [{"text": opt[0], "score": opt[1]} for opt in profiling_service.who5_options]
+        options = [{"text": opt[0], "score": opt[1]} for opt in profiling_service.who5_options] # Tetap kirim skor ke FE
     elif q_type == 'gad7':
         questions = profiling_service.gad7_questions
-        options = [{"text": opt[0], "score": opt[1]} for opt in profiling_service.gad7_options]
+        options = [{"text": opt[0], "score": opt[1]} for opt in profiling_service.gad7_options] # Tetap kirim skor ke FE
     elif q_type == 'mbi':
         questions = profiling_service.mbi_questions
-        options = [{"text": opt[0], "score": opt[1]} for opt in profiling_service.mbi_options]
+        options = [{"text": opt[0], "score": opt[1]} for opt in profiling_service.mbi_options] # Tetap kirim skor ke FE
     elif q_type == 'naqr':
         questions = profiling_service.naqr_questions
-        options = [{"text": opt[0], "score": opt[1]} for opt in profiling_service.naqr_options]
+        options = [{"text": opt[0], "score": opt[1]} for opt in profiling_service.naqr_options] # Tetap kirim skor ke FE
     elif q_type == 'k10':
         questions = profiling_service.k10_questions
-        options = [{"text": opt[0], "score": opt[1]} for opt in profiling_service.k10_options]
+        options = [{"text": opt[0], "score": opt[1]} for opt in profiling_service.k10_options] # Tetap kirim skor ke FE
     else:
         raise HTTPException(status_code=404, detail="Questionnaire type not found")
 
