@@ -37,10 +37,21 @@ def get_user_full_profile(
     user_id = current_user.get("id")
     full_profile_data = web_auth_service.get_user_full_profile_by_id(db, user_id)
 
+    # Ensure biodata is properly converted to dict (in case it's a DictRow)
+    if full_profile_data.get("biodata"):
+        biodata = full_profile_data["biodata"]
+        if not isinstance(biodata, dict):
+            biodata = dict(biodata)
+        full_profile_data["biodata"] = biodata
+
     # Proses hasil kesehatan untuk menambahkan interpretasi/kategori
     if full_profile_data.get("health_results"):
         processed_results = []
         for hr in full_profile_data["health_results"]:
+            # Ensure hr is a dict (convert if it's DictRow)
+            if not isinstance(hr, dict):
+                hr = dict(hr)
+            
             # Mengambil nilai dengan .get() untuk menghindari KeyError jika kunci tidak ada
             # Memberikan nilai default 0 jika tidak ada, agar tidak terjadi TypeError
             who5_total = hr.get('who5_total', 0)
@@ -92,14 +103,26 @@ def get_user_full_profile(
 @router.post("/profile", status_code=status.HTTP_201_CREATED)
 def create_or_update_user_profile(
     profile_data: UserProfile,
-    current_user: dict = Depends(web_auth_service.get_current_active_user)
+    current_user: dict = Depends(web_auth_service.get_current_active_user),
+    db: web_auth_service.Database = Depends(web_auth_service.get_db)
 ):
     """
     Create or update the user's identity profile (biodata).
+    Applies validation including gender-specific rules for status_kehamilan.
     """
     user_id = current_user.get("id")
+    
+    # Convert Pydantic model to dict for validation and processing
+    biodata_dict = profile_data.model_dump(by_alias=True)
+    
+    # Apply validation from profiling_service (gender-specific validation for status_kehamilan)
+    try:
+        profiling_service.validate_biodata(biodata_dict)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
     # The service handles the logic of insert vs update
-    profiling_service.save_user_profile(user_id, profile_data.model_dump(by_alias=True))
+    profiling_service.save_user_profile(user_id, biodata_dict)
     return {"message": "Profile saved successfully"}
 
 
@@ -298,10 +321,21 @@ def get_user_profile_by_id_admin(
     if not full_profile_data:
         raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found.")
 
+    # Ensure biodata is properly converted to dict (in case it's a DictRow)
+    if full_profile_data.get("biodata"):
+        biodata = full_profile_data["biodata"]
+        if not isinstance(biodata, dict):
+            biodata = dict(biodata)
+        full_profile_data["biodata"] = biodata
+
     # Proses hasil kesehatan untuk menambahkan interpretasi/kategori (logika yang sama dengan /profile/full)
     if full_profile_data.get("health_results"):
         processed_results = []
         for hr in full_profile_data["health_results"]:
+            # Ensure hr is a dict (convert if it's DictRow)
+            if not isinstance(hr, dict):
+                hr = dict(hr)
+            
             who5_total = hr.get('who5_total', 0)
             gad7_total = hr.get('gad7_total', 0)
             k10_total = hr.get('k10_total', 0)
@@ -314,7 +348,7 @@ def get_user_profile_by_id_admin(
 
             naqr_total = naqr_pribadi_total + naqr_pekerjaan_total + naqr_intimidasi_total
 
-            processed_hr = dict(hr) # Konversi ke dict untuk dimodifikasi
+            processed_hr = hr.copy()
             processed_hr.update({
                 "who5_category": profiling_service.get_who5_category_from_total(who5_total),
                 "gad7_category": profiling_service.get_gad7_category_from_total(gad7_total),
@@ -339,7 +373,6 @@ def get_user_profile_by_id_admin(
         biodata_completed=biodata_completed,
         health_results_completed=health_results_completed
     )
-    return
 
 @router.get("/admin/health-results/{user_id}", response_model=List[HealthResultBase], tags=["Admin"])
 def get_health_results_by_user_id_admin(

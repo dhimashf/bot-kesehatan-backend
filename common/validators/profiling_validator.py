@@ -24,9 +24,17 @@ def validate_biodata(biodata: dict):
     if not email or not is_valid_email(email):
         raise HTTPException(status_code=400, detail="Format email tidak valid.")
 
-    # Gender-specific validation
-    if biodata.get("jenis_kelamin") == "Laki-laki" and biodata.get("status_kehamilan") != "Tidak":
-        raise HTTPException(status_code=400, detail="Laki-laki tidak bisa hamil.")
+    # Gender-specific validation: status kehamilan hanya divalidasi untuk perempuan
+    jenis_kelamin = biodata.get("jenis_kelamin")
+    status_kehamilan = biodata.get("status_kehamilan")
+    
+    if jenis_kelamin == "Perempuan":
+        # Validasi status kehamilan hanya untuk perempuan
+        if status_kehamilan is None or status_kehamilan == "":
+            raise HTTPException(status_code=400, detail="Status kehamilan harus diisi untuk perempuan.")
+    elif jenis_kelamin == "Laki-laki":
+        # Untuk laki-laki, status kehamilan tidak relevan, set ke default "Tidak"
+        biodata["status_kehamilan"] = "Tidak"
 
     # Phone number validation (simple regex for Indonesian numbers)
     no_wa = biodata.get("no_wa")

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional, List
 from datetime import datetime
 
@@ -29,6 +29,19 @@ class UserProfile(BaseModel):
     status_kehamilan: str
     jumlah_anak: int
     email: Optional[EmailStr] = None # Opsional, diisi oleh backend
+    
+    @field_validator('status_kehamilan')
+    @classmethod
+    def validate_pregnancy_status(cls, v, info):
+        """Validasi status kehamilan berdasarkan jenis kelamin."""
+        # Jika jenis_kelamin adalah laki-laki, status_kehamilan harus "Tidak"
+        if info.data.get('jenis_kelamin') == 'Laki-laki' and v != 'Tidak':
+            # Auto-correct: set ke "Tidak" untuk laki-laki
+            return 'Tidak'
+        return v
+
+    class Config:
+        from_attributes = True
 
 class HealthResultBase(BaseModel):
     """Skema dasar untuk hasil kuesioner."""

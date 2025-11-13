@@ -297,6 +297,14 @@ class PsikoBot:
             next_field, _ = profiling_service.BIODATA_FIELDS[next_idx]
             if next_field == 'jabatan_lain' and profile['biodata'].get('jabatan') != 'Yang lain':
                 next_idx += 1 # Langsung loncat ke pertanyaan setelahnya
+        
+        # Skip 'status_kehamilan' jika jenis kelamin adalah laki-laki
+        if next_idx < len(profiling_service.BIODATA_FIELDS):
+            next_field, _ = profiling_service.BIODATA_FIELDS[next_idx]
+            if next_field == 'status_kehamilan' and profile['biodata'].get('jenis_kelamin') == 'Laki-laki':
+                # Set status_kehamilan otomatis ke "Tidak" untuk laki-laki
+                profile['biodata']['status_kehamilan'] = 'Tidak'
+                next_idx += 1 # Loncat ke pertanyaan setelahnya
 
         if next_idx >= len(profiling_service.BIODATA_FIELDS):
             # Semua biodata sudah terisi, simpan dan mulai profiling

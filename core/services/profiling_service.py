@@ -442,9 +442,17 @@ class ProfilingService:
         except (ValueError, TypeError):
             raise ValueError("Usia harus berupa angka.")
 
-        # Gender-specific validation
-        if biodata.get("jenis_kelamin") == "Laki-laki" and biodata.get("status_kehamilan") == "Ya":
-            raise ValueError("Laki-laki tidak bisa hamil.")
+        # Gender-specific validation: status kehamilan hanya divalidasi untuk perempuan
+        jenis_kelamin = biodata.get("jenis_kelamin")
+        status_kehamilan = biodata.get("status_kehamilan")
+        
+        if jenis_kelamin == "Perempuan":
+            # Validasi status kehamilan hanya untuk perempuan
+            if status_kehamilan is None or status_kehamilan == "":
+                raise ValueError("Status kehamilan harus diisi untuk perempuan.")
+        elif jenis_kelamin == "Laki-laki":
+            # Untuk laki-laki, status kehamilan tidak relevan, set ke default "Tidak"
+            biodata["status_kehamilan"] = "Tidak"
 
         return True
 
