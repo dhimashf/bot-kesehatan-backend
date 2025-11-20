@@ -63,6 +63,9 @@ def get_user_full_profile(
             naqr_pribadi_total = hr.get('naqr_pribadi_total', 0)
             naqr_pekerjaan_total = hr.get('naqr_pekerjaan_total', 0)
             naqr_intimidasi_total = hr.get('naqr_intimidasi_total', 0)
+            naqr_bullying_experience = hr.get('naqr_bullying_experience') # Bisa None
+            naqr_bullying_actors = hr.get('naqr_bullying_actors') # Bisa None
+            naqr_bullying_perpetrators_detail = hr.get('naqr_bullying_perpetrators_detail') # Bisa None
 
             who5_cat = profiling_service.get_who5_category_from_total(who5_total)
             gad7_cat = profiling_service.get_gad7_category_from_total(gad7_total)
@@ -84,7 +87,10 @@ def get_user_full_profile(
                 "mbi_pencapaian_category": mbi_pa_cat,
                 "mbi_total": mbi_emosional_total + mbi_sinis_total + mbi_pencapaian_total,
                 "naqr_total": naqr_total,
-                "naqr_category": naqr_cat
+                "naqr_category": naqr_cat,
+                "naqr_bullying_experience": naqr_bullying_experience,
+                "naqr_bullying_actors": naqr_bullying_actors,
+                "naqr_bullying_perpetrators_detail": naqr_bullying_perpetrators_detail
             })
             processed_results.append(processed_hr)
         full_profile_data["health_results"] = processed_results
@@ -136,19 +142,35 @@ def get_questionnaire_data(q_type: str, current_user: dict = Depends(web_auth_se
 
     if q_type == 'who5':
         questions = profiling_service.who5_questions
+        questions = [{"text": q} for q in profiling_service.who5_questions]
         options = [{"text": opt[0], "score": opt[1]} for opt in profiling_service.who5_options] # Tetap kirim skor ke FE
     elif q_type == 'gad7':
         questions = profiling_service.gad7_questions
+        questions = [{"text": q} for q in profiling_service.gad7_questions]
         options = [{"text": opt[0], "score": opt[1]} for opt in profiling_service.gad7_options] # Tetap kirim skor ke FE
     elif q_type == 'mbi':
         questions = profiling_service.mbi_questions
         options = [{"text": opt[0], "score": opt[1]} for opt in profiling_service.mbi_options] # Tetap kirim skor ke FE
     elif q_type == 'naqr':
+        # Endpoint ini sekarang hanya mengembalikan pertanyaan NAQR utama (58-79)
         questions = profiling_service.naqr_questions
-        options = [{"text": opt[0], "score": opt[1]} for opt in profiling_service.naqr_options] # Tetap kirim skor ke FE
+        options = [{"text": opt[0], "score": opt[1]} for opt in profiling_service.naqr_options]
     elif q_type == 'k10':
         questions = profiling_service.k10_questions
+        questions = [{"text": q} for q in profiling_service.k10_questions]
         options = [{"text": opt[0], "score": opt[1]} for opt in profiling_service.k10_options] # Tetap kirim skor ke FE
+    elif q_type == 'naqr_perundungan':
+        # Endpoint baru untuk kuesioner perundungan
+        # Mengembalikan struktur yang lebih detail untuk ditangani frontend
+        q_data = [
+            {
+                "id": "q80", "type": "multiple_choice", "text": profiling_service.naqr_perundungan_questions[0],
+                "options": [{"text": opt[0], "score": opt[1]} for opt in profiling_service.NAQR_BULLYING_EXPERIENCE_OPTIONS]
+            },
+            {"id": "q81", "type": "text_input", "text": profiling_service.naqr_perundungan_questions[1]},
+            {"id": "q82", "type": "text_input", "text": profiling_service.naqr_perundungan_questions[2]}
+        ]
+        return {"type": q_type, "questions": q_data}
     else:
         raise HTTPException(status_code=404, detail="Questionnaire type not found")
 
@@ -167,19 +189,25 @@ def submit_health_results(
 
     # Process MBI scores
     mbi_result = profiling_service.get_mbi_result(payload.mbi_scores)
+    # PERUBAHAN: Proses skor mentah NAQ-R di backend
+    naqr_result = profiling_service.get_naqr_result(payload.naqr_scores)
 
     # Prepare data for DB insertion
     health_data_to_save = {
         'user_id': user_id,
         'who5_total': payload.who5_total,
         'gad7_total': payload.gad7_total,
+        'k10_total': payload.k10_total,
         'mbi_emosional_total': mbi_result['emosional'][0],
         'mbi_sinis_total': mbi_result['sinis'][0],
         'mbi_pencapaian_total': mbi_result['pencapaian'][0],
-        'naqr_pribadi_total': payload.naqr_pribadi_total,
-        'naqr_pekerjaan_total': payload.naqr_pekerjaan_total,
-        'naqr_intimidasi_total': payload.naqr_intimidasi_total,
-        'k10_total': payload.k10_total
+        'naqr_pribadi_total': naqr_result['pribadi'],
+        'naqr_pekerjaan_total': naqr_result['pekerjaan'],
+        'naqr_intimidasi_total': naqr_result['intimidasi'],
+        # Tambahkan field kuesioner perundungan dari payload
+        'naqr_bullying_experience': payload.naqr_bullying_experience,
+        'naqr_bullying_actors': payload.naqr_bullying_actors,
+        'naqr_bullying_perpetrators_detail': payload.naqr_bullying_perpetrators_detail,
     }
 
     try:
@@ -188,12 +216,11 @@ def submit_health_results(
         raise HTTPException(status_code=500, detail=f"Failed to save results: {e}")
 
     # Prepare summary for the frontend
-    _, who5_interp = profiling_service.get_who5_result([payload.who5_total])
-    _, gad7_interp = profiling_service.get_gad7_result([payload.gad7_total])
-    _, k10_interp = profiling_service.get_k10_result([payload.k10_total])
-    
-    naqr_total = payload.naqr_pribadi_total + payload.naqr_pekerjaan_total + payload.naqr_intimidasi_total
-    naqr_interp = profiling_service.get_naqr_category_from_total(naqr_total)
+    who5_interp = profiling_service.get_who5_category_from_total(payload.who5_total)
+    gad7_interp = profiling_service.get_gad7_category_from_total(payload.gad7_total)
+    k10_interp = profiling_service.get_k10_category_from_total(payload.k10_total)
+
+    naqr_interp = naqr_result['category']
 
     summary = {
         "WHO-5": {"score": payload.who5_total, "interpretation": who5_interp},
@@ -201,9 +228,23 @@ def submit_health_results(
         "MBI-EE": {"score": mbi_result['emosional'][0], "interpretation": mbi_result['emosional'][1]},
         "MBI-CYN": {"score": mbi_result['sinis'][0], "interpretation": mbi_result['sinis'][1]},
         "MBI-PA": {"score": mbi_result['pencapaian'][0], "interpretation": mbi_result['pencapaian'][1]},
-        "NAQ-R Total": {"score": naqr_total, "interpretation": naqr_interp},
+        "NAQ-R Total": {"score": naqr_result['total'], "interpretation": naqr_interp},
         "K-10": {"score": payload.k10_total, "interpretation": k10_interp},
     }
+    
+    # Tambahkan detail perundungan ke ringkasan jika ada
+    if payload.naqr_bullying_experience is not None and payload.naqr_bullying_experience > 1:
+        experience_label = next((label for label, val in profiling_service.NAQR_BULLYING_EXPERIENCE_OPTIONS if val == payload.naqr_bullying_experience), "Tidak Diketahui")
+        bullying_summary = {
+            "Pengalaman": experience_label,
+        }
+        if payload.naqr_bullying_actors:
+            bullying_summary["Pelaku"] = payload.naqr_bullying_actors
+        if payload.naqr_bullying_perpetrators_detail:
+            bullying_summary["Detail Pelaku"] = payload.naqr_bullying_perpetrators_detail
+        
+        # Tambahkan objek ringkasan perundungan sebagai item baru di summary
+        summary["Detail Pengalaman Perundungan"] = bullying_summary
 
     return {"message": "Results saved successfully", "summary": summary}
 
@@ -272,7 +313,9 @@ def get_all_results_with_biodata(
     health_result_keys = [
         'health_result_id', 'who5_total', 'gad7_total', 'mbi_emosional_total', 
         'mbi_sinis_total', 'mbi_pencapaian_total', 'naqr_pribadi_total', 
-        'naqr_pekerjaan_total', 'naqr_intimidasi_total', 'k10_total', 'created_at'
+        'naqr_pekerjaan_total', 'naqr_intimidasi_total', 'k10_total', 'created_at',
+        'naqr_bullying_experience', 'naqr_bullying_actors',
+        'naqr_bullying_perpetrators_detail'
     ]
 
     for row in all_data:
@@ -345,6 +388,9 @@ def get_user_profile_by_id_admin(
             naqr_pribadi_total = hr.get('naqr_pribadi_total', 0)
             naqr_pekerjaan_total = hr.get('naqr_pekerjaan_total', 0)
             naqr_intimidasi_total = hr.get('naqr_intimidasi_total', 0)
+            naqr_bullying_experience = hr.get('naqr_bullying_experience')
+            naqr_bullying_actors = hr.get('naqr_bullying_actors')
+            naqr_bullying_perpetrators_detail = hr.get('naqr_bullying_perpetrators_detail')
 
             naqr_total = naqr_pribadi_total + naqr_pekerjaan_total + naqr_intimidasi_total
 
@@ -358,7 +404,10 @@ def get_user_profile_by_id_admin(
                 "mbi_pencapaian_category": profiling_service.get_mbi_category('pencapaian', mbi_pencapaian_total),
                 "mbi_total": mbi_emosional_total + mbi_sinis_total + mbi_pencapaian_total,
                 "naqr_total": naqr_total,
-                "naqr_category": profiling_service.get_naqr_category_from_total(naqr_total)
+                "naqr_category": profiling_service.get_naqr_category_from_total(naqr_total),
+                "naqr_bullying_experience": naqr_bullying_experience,
+                "naqr_bullying_actors": naqr_bullying_actors,
+                "naqr_bullying_perpetrators_detail": naqr_bullying_perpetrators_detail
             })
             processed_results.append(processed_hr)
         full_profile_data["health_results"] = processed_results

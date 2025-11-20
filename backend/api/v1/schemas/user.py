@@ -56,6 +56,9 @@ class HealthResultBase(BaseModel):
     naqr_pekerjaan_total: int
     naqr_intimidasi_total: int
     k10_total: int
+    naqr_bullying_experience: Optional[int] = None
+    naqr_bullying_actors: Optional[str] = None
+    naqr_bullying_perpetrators_detail: Optional[str] = None
     created_at: datetime
 
 class FullUserProfileResponse(BaseModel):
@@ -71,9 +74,12 @@ class HealthResultPayload(BaseModel):
     gad7_total: int
     k10_total: int
     mbi_scores: List[int]
-    naqr_pribadi_total: int
-    naqr_pekerjaan_total: int
-    naqr_intimidasi_total: int
+    # PERUBAHAN: Menerima 22 skor mentah NAQ-R, sama seperti MBI
+    naqr_scores: List[int]
+    # Tambahan untuk kuesioner perundungan (pertanyaan 80-82)
+    naqr_bullying_experience: Optional[int] = None
+    naqr_bullying_actors: Optional[str] = None
+    naqr_bullying_perpetrators_detail: Optional[str] = None
 
 class SummaryItem(BaseModel):
     score: int
@@ -82,4 +88,4 @@ class SummaryItem(BaseModel):
 class HealthResultSummary(BaseModel):
     """Skema untuk ringkasan hasil yang dikembalikan ke frontend."""
     message: str
-    summary: dict[str, SummaryItem]
+    summary: dict[str, SummaryItem | dict[str, str]]

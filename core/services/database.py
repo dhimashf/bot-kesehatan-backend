@@ -175,13 +175,25 @@ class Database:
 
     def insert_health_result(self, health_data: dict):
         sql = """
-        INSERT INTO health_results (user_id, who5_total, gad7_total, mbi_emosional_total, mbi_sinis_total, mbi_pencapaian_total, naqr_pribadi_total, naqr_pekerjaan_total, naqr_intimidasi_total, k10_total)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO health_results (
+            user_id, who5_total, gad7_total, mbi_emosional_total, mbi_sinis_total, 
+            mbi_pencapaian_total, naqr_pribadi_total, naqr_pekerjaan_total, 
+            naqr_intimidasi_total, k10_total, naqr_bullying_experience, 
+            naqr_bullying_actors, naqr_bullying_perpetrators_detail
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING id;
         """
         values = (
-            health_data['user_id'], health_data['who5_total'], health_data['gad7_total'], health_data['mbi_emosional_total'],
-            health_data['mbi_sinis_total'], health_data['mbi_pencapaian_total'], health_data['naqr_pribadi_total'], health_data['naqr_pekerjaan_total'], health_data['naqr_intimidasi_total'], health_data['k10_total']
+            health_data['user_id'], health_data['who5_total'], health_data['gad7_total'], 
+            health_data['mbi_emosional_total'], health_data['mbi_sinis_total'], 
+            health_data['mbi_pencapaian_total'], health_data['naqr_pribadi_total'], 
+            health_data['naqr_pekerjaan_total'], health_data['naqr_intimidasi_total'], 
+            health_data['k10_total'],
+            # Kolom baru, akan mengambil nilai dari health_data atau None jika tidak ada (dari setdefault)
+            health_data.get('naqr_bullying_experience'),
+            health_data.get('naqr_bullying_actors'),
+            health_data.get('naqr_bullying_perpetrators_detail')
         )
         # Gunakan fetch='returning'
         return self.execute_query(sql, values, fetch='returning')
@@ -251,7 +263,9 @@ class Database:
             hr.id AS health_result_id,
             hr.who5_total, hr.gad7_total, hr.mbi_emosional_total, hr.mbi_sinis_total,
             hr.mbi_pencapaian_total, hr.naqr_pribadi_total, hr.naqr_pekerjaan_total,
-            hr.naqr_intimidasi_total, hr.k10_total, hr.created_at
+            hr.naqr_intimidasi_total, hr.k10_total, hr.created_at,
+            hr.naqr_bullying_experience, hr.naqr_bullying_actors,
+            hr.naqr_bullying_perpetrators_detail
         FROM
             users u
         LEFT JOIN
@@ -263,6 +277,26 @@ class Database:
         """
         return self.execute_query(sql, fetch='all')
 
+    def update_health_result_bullying(self, user_id: int, bullying_data: dict):
+        """
+        Updates the latest health_result for a user with bullying survey data.
+        """
+        # Menemukan ID hasil kesehatan terbaru untuk pengguna ini
+        latest_result_id_query = "SELECT id FROM health_results WHERE user_id = %s ORDER BY created_at DESC LIMIT 1"
+        latest_result_id = self.execute_query(latest_result_id_query, (user_id,), fetch='returning')
+
+        if not latest_result_id:
+            raise ValueError(f"No health_result found for user_id {user_id} to update.")
+
+        sql = """
+            UPDATE health_results SET
+                naqr_bullying_experience = %(naqr_bullying_experience)s,
+                naqr_bullying_actors = %(naqr_bullying_actors)s,
+                naqr_bullying_perpetrators_detail = %(naqr_bullying_perpetrators_detail)s
+            WHERE id = %(result_id)s
+        """
+        params = {**bullying_data, "result_id": latest_result_id}
+        return self.execute_query(sql, params)
 
     # --- PERBAIKAN: Sederhanakan metode DELETE dan UPDATE ---
     def delete_health_result_by_id(self, result_id: int, user_id: int) -> bool:

@@ -201,10 +201,6 @@ NAQR_QUESTIONS = [
     "77. Saya menjadi target ejekan dan sindiran kasar (sarcasm)",
     "78. Saya diberi beban kerja yang tidak mungkin dapat saya kelola",
     "79. Saya menerima ancaman kekerasan atau pelecehan secara ﬁsik atau verbal/ ujaran (perkataan)",
-    # Item tambahan (80–82)
-    "80. Apakah Anda pernah mengalami perundungan di tempat kerja dalam enam bulan terakhir? (Gunakan definisi perundungan sebagaimana dijelaskan)",
-    "81. Siapa saja yang melakukan perundungan terhadap Anda? (Boleh lebih dari satu)",
-    "82. Sebutkan jumlah pelaku perundungan terhadap Anda (laki-laki dan perempuan)",
 ]
 NAQR_LIKERT_OPTIONS = [
     ("Tidak Pernah", 1),
@@ -212,6 +208,16 @@ NAQR_LIKERT_OPTIONS = [
     ("Setiap Bulan", 3),
     ("Setiap Minggu", 4),
     ("Setiap Hari", 5)
+]
+
+# Kategori baru untuk kuesioner perundungan (item 80-82)
+NAQR_PERUNDUNGAN_QUESTIONS = [
+    # Indeks 0 -> Pertanyaan 80
+    "Apakah Anda pernah mengalami perundungan di tempat kerja dalam enam bulan terakhir?  Kami mendefinisikan perundungan sebagai suatu situasi ketika seseorang atau beberapa orang mempersepsikan dirinya menerima tindakan negatif dari satu orang atau lebih selama suatu jangka waktu tertentu dalam situasi ketika korban perundungan merasa tidak berdaya untuk membela dirinya terhadap Tindakan tersebut. Jika hanya terjadi satu kali, maka kami tidak akan menganggapnya sebagai perundungan. Dengan menggunakan definisi di atas, mohon jawab apakah Anda pernah mengalami perundungan (bully) di tempat kerja selama enam bulan terakhir?",
+    # Indeks 1 -> Pertanyaan 81
+    "Siapa saja yang melakukan perundungan terhadap Anda? (Boleh lebih dari satu)",
+    # Indeks 2 -> Pertanyaan 82
+    "Sebutkan jumlah pelaku perundungan terhadap Anda (laki-laki dan perempuan)",
 ]
 NAQR_BULLYING_EXPERIENCE_OPTIONS = [
     ("Tidak", 1),
@@ -221,18 +227,11 @@ NAQR_BULLYING_EXPERIENCE_OPTIONS = [
     ("Ya, hampir tiap hari", 5)
 ]
 # Opsi pelaku (item 81)
-NAQR_BULLYING_ACTORS = [
-    "Atasan langsung saya",
-    "Atasan/manajer lain dalam organisasi",
-    "Rekan kerja",
-    "Bawahan",
-    "Pelanggan/Pasien/Pelajar, dll",
-    "Yang lain (tuliskan)"
-]
+
 NAQR_SUBSCALES = {
-    "pribadi": [1,4,5,6,8,9,11,14,16,19,21], # index 2,5,6,7,9,10,12,15,17,20,22 (1-based)
-    "pekerjaan": [0,2,3,13,15,18,20], # index 1,3,4,14,16,19,21 (1-based)
-    "intimidasi": [7,10,12,17] # index 8,11,13,18 (1-based)
+    "pribadi": [1, 4, 5, 6, 8, 9, 11, 14, 16, 19, 21], # Indeks 0-based: 1, 4, 5, 6, 8, 9, 11, 14, 16, 19, 21
+    "pekerjaan": [0, 2, 3, 12, 15, 17, 20], # Indeks 0-based: 0, 2, 3, 12, 15, 17, 20
+    "intimidasi": [7, 10, 13, 18] # Indeks 0-based: 7, 10, 13, 18
 }
 
 NAQR_CATEGORY = [
@@ -322,6 +321,9 @@ class ProfilingService:
         self.naqr_options = NAQR_LIKERT_OPTIONS
         self.NAQR_BULLYING_EXPERIENCE_OPTIONS = NAQR_BULLYING_EXPERIENCE_OPTIONS
         self.naqr_subscales = NAQR_SUBSCALES
+        # Kuesioner Perundungan
+        self.naqr_perundungan_questions = NAQR_PERUNDUNGAN_QUESTIONS
+
         self.naqr_category = NAQR_CATEGORY
         # K10
         self.k10_questions = K10_QUESTIONS
@@ -472,25 +474,13 @@ class ProfilingService:
         sinis = sum([scores[i] for i in self.mbi_subscales["sinis"]])
         pencapaian = sum([scores[i] for i in self.mbi_subscales["pencapaian"]])
         total = sum(scores)
-        def cat(val, scale):
-            # Menambahkan nama subskala ke label kategori
-            scale_name_map = {
-                "emosional": "Kelelahan Emosional",
-                "sinis": "Sikap Sinis",
-                "pencapaian": "Pencapaian Pribadi",
-                "total": "Burnout"
-            }
-            scale_name = scale_name_map.get(scale, scale.title())
-            for lim, label in self.mbi_category[scale]:
-                if val <= lim:
-                    return f"{scale_name} {label}"
-            return f"{scale_name} {self.mbi_category[scale][-1][1]}"
+
+        # Gunakan kembali fungsi get_mbi_category yang sudah ada untuk konsistensi
         return {
-            # Menghapus .replace() karena penanganan prefix sudah benar di fungsi cat()
-            "emosional": (emosional, cat(emosional, "emosional")), 
-            "sinis": (sinis, cat(sinis, "sinis")),
-            "pencapaian": (pencapaian, cat(pencapaian, "pencapaian")),
-            "total": (total, cat(total, "total"))
+            "emosional": (emosional, self.get_mbi_category("emosional", emosional)),
+            "sinis": (sinis, self.get_mbi_category("sinis", sinis)),
+            "pencapaian": (pencapaian, self.get_mbi_category("pencapaian", pencapaian)),
+            "total": (total, self.get_mbi_category("total", total))
         }
 
     def get_mbi_category(self, scale: str, value: int) -> str:
@@ -505,24 +495,11 @@ class ProfilingService:
                 return f"{scale_name} {label}"
         return f"{scale_name} {self.mbi_category[scale][-1][1]}"
     # NAQ-R
-    def get_naqr_keyboard_for_question(self, idx):
-        """
-        Mengembalikan InlineKeyboardMarkup yang sesuai untuk pertanyaan NAQ-R berdasarkan indeks.
-        Untuk pertanyaan teks, mengembalikan None.
-        """
-        if idx < 22: # Pertanyaan NAQ-R utama (0-21)
-            return InlineKeyboardMarkup([
-                [InlineKeyboardButton(label, callback_data=str(score))] for label, score in self.naqr_options
-            ])
-        elif idx == 22: # Pertanyaan 80: Opsi pengalaman perundungan
-            return InlineKeyboardMarkup([
-                [InlineKeyboardButton(label, callback_data=str(score))] for label, score in NAQR_BULLYING_EXPERIENCE_OPTIONS
-            ])
-        elif idx == 23: # Pertanyaan 81: Input teks
-            return None
-        elif idx == 24: # Pertanyaan 82: Input teks
-            return None
-        return None
+    def get_naqr_keyboard(self):
+        """Mengembalikan keyboard untuk pertanyaan utama NAQ-R."""
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton(label, callback_data=str(score))] for label, score in self.naqr_options
+        ])
 
     def get_mbi_result_from_totals(self, health_result: dict) -> str:
         """Mendapatkan ringkasan MBI dari total skor yang sudah ada."""
@@ -551,7 +528,7 @@ class ProfilingService:
         total_score = pribadi + pekerjaan + intimidasi
         category = self.get_naqr_category_from_total(total_score)
 
-        return (
+        summary = (
             f"Perundungan Pribadi: {pribadi}\n"
             f"Perundungan Pekerjaan: {pekerjaan}\n" # K10 is now before MBI
             f"Intimidasi: {intimidasi}\n" # K10 is now before MBI
@@ -559,17 +536,41 @@ class ProfilingService:
             f"Kategori: *{category}*"
         )
 
+        # Tambahkan detail perundungan jika ada di data
+        q80_score = health_result.get("naqr_bullying_experience")
+        if q80_score is not None and q80_score > 1:
+            q80_label = next((label for label, val in NAQR_BULLYING_EXPERIENCE_OPTIONS if val == q80_score), "Tidak Diketahui")
+            summary += f"\n*Pengalaman Perundungan:* {q80_label}"
+            if health_result.get("naqr_bullying_actors"):
+                summary += f"\n*Pelaku:* {health_result['naqr_bullying_actors']}"
+            if health_result.get("naqr_bullying_perpetrators_detail"):
+                summary += f"\n*Jumlah Pelaku:* {health_result['naqr_bullying_perpetrators_detail']}"
+        return summary
+
     def get_naqr_question(self, idx):
         if 0 <= idx < len(self.naqr_questions):
-            if idx < 22: # Main NAQR questions (0-21)
-                return f"Selama enam bulan terakhir, seberapa sering Anda mengalami tindakan negatif berikut di tempat kerja?\n{self.naqr_questions[idx]}"
-            elif idx == 22: # Q80
-                return self.naqr_questions[idx]
-            elif idx == 23: # Q81
-                return f"{self.naqr_questions[idx]}\n(Sebutkan nama/jabatan, pisahkan dengan koma jika lebih dari satu)"
-            elif idx == 24: # Q82
-                return f"{self.naqr_questions[idx]}\n(Contoh: 2 laki-laki, 1 perempuan)"
+            return f"Selama enam bulan terakhir, seberapa sering Anda mengalami tindakan negatif berikut di tempat kerja?\n{self.naqr_questions[idx]}"
         return None
+
+    # --- Metode untuk Kuesioner Perundungan (NAQR 80-82) ---
+    def get_naqr_perundungan_question(self, idx: int):
+        """Mendapatkan pertanyaan untuk kuesioner perundungan berdasarkan indeks (0, 1, 2)."""
+        if 0 <= idx < len(self.naqr_perundungan_questions):
+            question = self.naqr_perundungan_questions[idx]
+            if idx == 1: # Pertanyaan 81
+                return f"{question}\n(Sebutkan nama/jabatan, pisahkan dengan koma jika lebih dari satu)"
+            if idx == 2: # Pertanyaan 82
+                return f"{question}\n(Contoh: 2 laki-laki, 1 perempuan)"
+            return question # Pertanyaan 80
+        return None
+
+    def get_naqr_perundungan_keyboard(self, idx: int):
+        """Mendapatkan keyboard untuk pertanyaan kuesioner perundungan."""
+        if idx == 0: # Pertanyaan 80
+            return InlineKeyboardMarkup([
+                [InlineKeyboardButton(label, callback_data=str(score))] for label, score in self.NAQR_BULLYING_EXPERIENCE_OPTIONS
+            ])
+        return None # Pertanyaan 81 dan 82 adalah input teks
 
     def get_naqr_result(self, scores):
         pribadi = sum([scores[i] for i in self.naqr_subscales["pribadi"]])
@@ -647,6 +648,11 @@ class ProfilingService:
         """
         try:
             db = Database()
+            # Pastikan field tambahan ada di dictionary, set ke None jika tidak ada
+            health_data.setdefault('naqr_bullying_experience', None)
+            health_data.setdefault('naqr_bullying_actors', None)
+            health_data.setdefault('naqr_bullying_perpetrators_detail', None)
+
             db.insert_health_result(health_data)
         except Exception as e:
             # Di sini kita bisa log errornya, tapi biarkan bot yang menangani notifikasi ke user

@@ -2,7 +2,6 @@ import logging
 import os
 import sys
 import httpx
-from enum import Enum, auto
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, BotCommand
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes, ConversationHandler, ExtBot, Defaults
 
@@ -11,39 +10,9 @@ from core.services.openrouter_service import openrouter_service
 from common.data.kitab_loader import kitab_loader
 from core.services.profiling_service import profiling_service
 from backend.services import web_auth_service, user_service
+from bot_tele.naqr_perundungan_handler import naqr_perundungan_handler
 from core.services.database import Database
-
-
-# --- State Management with Enums ---
-# This makes the code more readable and less error-prone than using range().
-class State(Enum):
-    # Onboarding Flow
-    ASK_ACCOUNT = auto()
-    AWAIT_LOGIN_EMAIL = auto()
-    REGISTER_EMAIL = auto()
-    # Biodata Flow
-    BIODATA_EMAIL = auto()
-    BIODATA_INISIAL = auto()
-    BIODATA_NOWA = auto()
-    BIODATA_USIA = auto()
-    BIODATA_JK = auto()
-    BIODATA_PENDIDIKAN = auto()
-    BIODATA_LAMA_BEKERJA = auto()
-    BIODATA_STATUS_PEGAWAI = auto()
-    BIODATA_JABATAN = auto()
-    BIODATA_JABATAN_LAIN = auto()
-    BIODATA_UNIT = auto()
-    BIODATA_PERKAWINAN = auto()
-    BIODATA_KEHAMILAN = auto()
-    BIODATA_JUMLAH_ANAK = auto()
-    # Questionnaire Flow
-    WHO5 = auto()
-    GAD7 = auto()
-    MBI = auto()
-    NAQR = auto()
-    NAQR_Q81_TEXT = auto() # New state for NAQR Q81 text input
-    NAQR_Q82_TEXT = auto() # New state for NAQR Q82 text input
-    K10 = auto()
+from .states import State
 
 # List of biodata states in order, used for transitions
 BIODATA_STATES_LIST = [
@@ -487,6 +456,7 @@ class PsikoBot:
                 State.NAQR_Q81_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.naqr_q81_text_handler)],
                 State.NAQR_Q82_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.naqr_q82_text_handler)],
                 State.K10: [CallbackQueryHandler(self.k10_callback)],
+                State.NAQR_PERUNDUNGAN: [naqr_perundungan_handler],
             },
             fallbacks=[
                 CommandHandler("start", self.start_command), # Izinkan /start untuk merestart percakapan
@@ -691,57 +661,43 @@ class PsikoBot:
     async def ask_naqr_question(self, update: Update, context: ContextTypes.DEFAULT_TYPE, idx: int):
         """Tampilkan pertanyaan NAQ-R ke user. Mengedit pesan jika dari callback, mengirim baru jika tidak."""
         question = profiling_service.get_naqr_question(idx)
-        keyboard = profiling_service.get_naqr_keyboard_for_question(idx)
+        # PERBAIKAN: Menggunakan nama fungsi yang benar. Keyboard NAQ-R sama untuk semua pertanyaan.
+        keyboard = profiling_service.get_naqr_keyboard()
 
         # Tentukan pesan yang akan dikirim atau diedit
         target_message = update.callback_query.message if update.callback_query else update.message
 
-        if keyboard: # Untuk pertanyaan dengan tombol
-            if update.callback_query:
-                await target_message.reply_text(question, reply_markup=keyboard, parse_mode='Markdown') # Kirim sebagai pesan baru
-            else:
-                await target_message.reply_text(question, reply_markup=keyboard, parse_mode='Markdown')
+        if update.callback_query:
+            await target_message.reply_text(question, reply_markup=keyboard, parse_mode='Markdown') # Kirim sebagai pesan baru
         else: # Untuk pertanyaan input teks (Q81, Q82)
-            await target_message.reply_text(question, parse_mode='Markdown')
-        # Simpan info pertanyaan untuk feedback, kecuali untuk pertanyaan teks
-        if idx < len(profiling_service.naqr_questions) and keyboard:
-            context.user_data['current_question'] = {'text': profiling_service.naqr_questions[idx], 'options': profiling_service.naqr_options}
+            await target_message.reply_text(question, reply_markup=keyboard, parse_mode='Markdown')
 
-        # Tentukan state berikutnya berdasarkan jenis pertanyaan
-        if idx == 23:
-            return State.NAQR_Q81_TEXT
-        if idx == 24:
-            return State.NAQR_Q82_TEXT
+        # Simpan info pertanyaan untuk feedback
         context.user_data['current_question'] = {'text': profiling_service.naqr_questions[idx], 'options': profiling_service.naqr_options}
 
+        # State untuk semua pertanyaan NAQ-R utama adalah sama.
         return State.NAQR
 
     async def naqr_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle jawaban NAQ-R callback (for questions 0-22)"""
+        """Handle jawaban NAQ-R callback (untuk 22 pertanyaan utama)."""
         query = update.callback_query
         await query.answer()
         score = int(query.data)
         profile = self.get_user_profile(context)
         
         current_naqr_idx = len(profile["naqr_scores"])
+        profile["naqr_scores"].append(score)
 
-        # Store score for NAQR main questions (0-21) and Q80 (index 22)
-        if current_naqr_idx < 23: # Questions 0-22 (main NAQR + Q80)
-            profile["naqr_scores"].append(score)
-            # Store Q80 answer separately for display in summary
-            if current_naqr_idx == 22:
-                # Find the label for the score from NAQR_BULLYING_EXPERIENCE_OPTIONS
-                q80_label = next((label for label, val in profiling_service.NAQR_BULLYING_EXPERIENCE_OPTIONS if val == score), str(score))
-                profile["naqr_q80_answer"] = q80_label
         # Tampilkan feedback jawaban di pesan yang sama
         feedback_text = self.format_answer_feedback(context.user_data.pop('current_question', {}), score)
         await query.edit_message_text(feedback_text, parse_mode='Markdown')
+
         next_question_idx = current_naqr_idx + 1
-        if next_question_idx < len(profiling_service.naqr_questions):
+        if next_question_idx < 22: # Hanya proses 22 pertanyaan NAQR utama
             return await self.ask_naqr_question(update, context, next_question_idx)
         else:
-            # All NAQR questions (including text ones) are done. Save results and end.
-            return await self.save_naqr_results_and_end(update, context)
+            # Setelah 22 pertanyaan selesai, mulai kuesioner perundungan
+            return await self.start_naqr_perundungan(update, context)
 
     async def naqr_q81_text_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle text input for NAQR Question 81 (Who are the bullies?)"""
@@ -769,6 +725,21 @@ class PsikoBot:
         # All NAQR questions are done. Save results and end.
         return await self.save_naqr_results_and_end(update, context)
 
+    async def start_naqr_perundungan(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        """Memulai kuesioner perundungan dengan menanyakan pertanyaan 80."""
+        question = profiling_service.get_naqr_perundungan_question(0)
+        keyboard = profiling_service.get_naqr_perundungan_keyboard(0)
+
+        # Inisialisasi penyimpanan jawaban di lokasi yang benar
+        profile = self.get_user_profile(context)
+        profile['naqr_perundungan_answers'] = {}
+
+        await update.effective_message.reply_text("Terima kasih telah menyelesaikan kuesioner NAQ-R. Berikut adalah beberapa pertanyaan tambahan terkait perundungan.")
+        await update.effective_message.reply_text(question, reply_markup=keyboard)
+        
+        # Masuk ke state sub-handler perundungan
+        return State.NAQR_PERUNDUNGAN
+
     async def save_naqr_results_and_end(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Saves all questionnaire results to DB and ends the conversation."""
         user_id = update.effective_user.id
@@ -780,8 +751,7 @@ class PsikoBot:
         total_k10, category_k10 = profiling_service.get_k10_result(profile["k10_scores"]) # K10 is now before MBI
         mbi_result = profiling_service.get_mbi_result(profile["mbi_scores"])
         
-        # NAQR subscale totals only from the first 22 scores
-        naqr_main_scores = profile["naqr_scores"][:22]
+        naqr_main_scores = profile["naqr_scores"] # Sekarang hanya berisi 22 skor
         naqr_result = profiling_service.get_naqr_result(naqr_main_scores)
         
         profile["completed"] = True
@@ -800,6 +770,10 @@ class PsikoBot:
                     'naqr_pribadi_total': naqr_result['pribadi'],
                     'naqr_pekerjaan_total': naqr_result['pekerjaan'],
                     'naqr_intimidasi_total': naqr_result['intimidasi'],
+                    # Ambil data perundungan dari profile jika ada
+                    'naqr_bullying_experience': profile.get('naqr_perundungan_answers', {}).get('naqr_bullying_experience'),
+                    'naqr_bullying_actors': profile.get('naqr_perundungan_answers', {}).get('naqr_bullying_actors'),
+                    'naqr_bullying_perpetrators_detail': profile.get('naqr_perundungan_answers', {}).get('naqr_bullying_perpetrators_detail'),
                 }
                 profiling_service.save_health_results(profiling_data)
                 logger.info(f"Health results for DB user ID {profile['db_user_id']} saved.")
@@ -828,14 +802,16 @@ class PsikoBot:
             f"Intimidasi: {naqr_result['intimidasi']}\n"
             f"Total Skor: {naqr_result['total']} | Kategori: *{naqr_result['category']}*\n"
         )
-        # Add Q80, Q81, Q82 answers to summary if available in profile
-        if profile.get("naqr_q80_answer"):
-            summary += f"\n*Q80:* {profile['naqr_q80_answer']}"
-        if profile.get("naqr_q81_answer"):
-            summary += f"\n*Q81:* {profile['naqr_q81_answer']}"
-        if profile.get("naqr_q82_answer"):
-            summary += f"\n*Q82:* {profile['naqr_q82_answer']}"
-
+        # Tambahkan ringkasan perundungan jika ada
+        bullying_answers = profile.get('naqr_perundungan_answers', {})
+        q80_score = bullying_answers.get('naqr_bullying_experience')
+        if q80_score and q80_score > 1:
+            q80_label = next((label for label, val in profiling_service.NAQR_BULLYING_EXPERIENCE_OPTIONS if val == q80_score), "Tidak Diketahui")
+            summary += f"\n*Pengalaman Perundungan:* {q80_label}"
+            if bullying_answers.get("naqr_bullying_actors"):
+                summary += f"\n*Pelaku:* {bullying_answers['naqr_bullying_actors']}"
+            if bullying_answers.get("naqr_bullying_perpetrators_detail"):
+                summary += f"\n*Jumlah Pelaku:* {bullying_answers['naqr_bullying_perpetrators_detail']}"
         summary += "Ketik /help untuk melihat panduan lengkap."
 
         await (update.message or update.callback_query.message).reply_text(summary, parse_mode='Markdown')
@@ -877,40 +853,32 @@ class PsikoBot:
             profile["mbi_scores"] = []
             return await self.ask_mbi_question(update, context, 0)
     
-    def _format_profile_summary(self, profile: dict) -> str:
-        """Helper function to format the profile summary text."""
-        hr_list = profile.get("health_results", [])
-        if not hr_list or not isinstance(hr_list, list):
-            return "Data hasil kuesioner tidak ditemukan atau formatnya salah."
+    def _format_single_history_entry(self, hr: dict, index: int) -> str:
+        """Helper function to format a single questionnaire history entry."""
+        total_who5 = hr.get('who5_total', 0)
+        category_who5 = profiling_service.get_who5_category_from_total(total_who5)
+        total_gad7 = hr.get('gad7_total', 0)
+        category_gad7 = profiling_service.get_gad7_category_from_total(total_gad7)
+        total_k10 = hr.get('k10_total', 0)
+        category_k10 = profiling_service.get_k10_category_from_total(total_k10)
         
-        # Buat string untuk setiap entri riwayat
-        history_texts = []
-        for i, hr in enumerate(hr_list):
-            total_who5 = hr.get('who5_total', 0)
-            category_who5 = profiling_service.get_who5_category_from_total(total_who5)
-            total_gad7 = hr.get('gad7_total', 0)
-            category_gad7 = profiling_service.get_gad7_category_from_total(total_gad7)
-            total_k10 = hr.get('k10_total', 0)
-            category_k10 = profiling_service.get_k10_category_from_total(total_k10)
-            
-            mbi_result = profiling_service.get_mbi_result_from_totals(hr)
-            naqr_result = profiling_service.get_naqr_result_from_totals(hr)
-            
-            # Ambil tanggal dari data, jika ada. Format agar lebih mudah dibaca.
-            created_at_str = hr.get('created_at', 'Tanggal tidak diketahui')
-            if isinstance(created_at_str, str) and len(created_at_str) > 10:
-                created_at_str = created_at_str[:10] # Ambil YYYY-MM-DD
+        mbi_result = profiling_service.get_mbi_result_from_totals(hr)
+        naqr_result = profiling_service.get_naqr_result_from_totals(hr)
+        
+        # Ambil tanggal dari data, jika ada. Format agar lebih mudah dibaca.
+        created_at_str = hr.get('created_at', 'Tanggal tidak diketahui')
+        if isinstance(created_at_str, str) and len(created_at_str) > 10:
+            created_at_str = created_at_str[:10] # Ambil YYYY-MM-DD
 
-            entry_text = f" riwayat *{i+1}* (Tanggal: {created_at_str})\n" \
-                         f"----------------------------------\n" \
-                         f"*WHO-5 WELL-BEING INDEX*\nSkor: {total_who5} dari 30 | Kategori: *{category_who5}*\n\n" \
-                         f"*GAD-7 (Generalized Anxiety Disorder)*\nSkor: {total_gad7} dari 21 | Kategori: *{category_gad7}*\n\n" \
-                         f"*Kessler (K10) Skala Gangguan Psikososial*\nSkor: {total_k10} dari 50 | Kategori: *{category_k10}*\n\n" \
-                         f"*Maslach Burnout Inventory (MBI)*\n{mbi_result}\n\n" \
-                         f"*NAQ-R (Negative Acts Questionnaire-Revised)*\n{naqr_result}"
-            history_texts.append(entry_text)
-
-        return f" riwayat Kuesioner Anda\n\n" + "\n\n---\n\n".join(history_texts)
+        return (
+            f" riwayat *{index + 1}* (Tanggal: {created_at_str})\n"
+            f"----------------------------------\n"
+            f"*WHO-5 WELL-BEING INDEX*\nSkor: {total_who5} dari 30 | Kategori: *{category_who5}*\n\n"
+            f"*GAD-7 (Generalized Anxiety Disorder)*\nSkor: {total_gad7} dari 21 | Kategori: *{category_gad7}*\n\n"
+            f"*Kessler (K10) Skala Gangguan Psikososial*\nSkor: {total_k10} dari 50 | Kategori: *{category_k10}*\n\n"
+            f"*Maslach Burnout Inventory (MBI)*\n{mbi_result}\n\n"
+            f"*NAQ-R (Negative Acts Questionnaire-Revised)*\n{naqr_result}"
+        )
 
 
     
@@ -951,14 +919,21 @@ class PsikoBot:
         profile = self.get_user_profile(context)
 
         if not profile.get("completed"):
-            await update.message.reply_text( # type: ignore
+            await update.message.reply_text(
                 "Anda belum menyelesaikan kuesioner. Gunakan /start untuk memulai.",
                 parse_mode='Markdown'
             )
             return
 
-        profile_text = self._format_profile_summary(profile)
-        await update.message.reply_text(profile_text, parse_mode='Markdown')
+        hr_list = profile.get("health_results", [])
+        if not hr_list:
+            await update.message.reply_text("Riwayat kuesioner Anda masih kosong.")
+            return
+
+        await update.message.reply_text(f"Menampilkan {len(hr_list)} riwayat kuesioner Anda:")
+        for i, hr in enumerate(reversed(hr_list)):
+            entry_text = self._format_single_history_entry(hr, len(hr_list) - 1 - i)
+            await update.message.reply_text(entry_text, parse_mode='Markdown')
     
     async def reset_profile(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Reset user profile"""

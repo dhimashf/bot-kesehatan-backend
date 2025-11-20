@@ -67,6 +67,17 @@ class OpenRouterService:
             f"Intimidasi {latest_result['naqr_intimidasi_total']}, "
             f"Total {naqr_total}"
         )
+        # Tambahkan detail perundungan jika ada
+        if latest_result.get('naqr_bullying_experience') and latest_result['naqr_bullying_experience'] > 1:
+            experience_score = latest_result['naqr_bullying_experience']
+            experience_label = next((label for label, val in profiling_service.NAQR_BULLYING_EXPERIENCE_OPTIONS if val == experience_score), "Tidak diketahui")
+            bullying_details = [f"Pengalaman Perundungan: {experience_label}"]
+            if latest_result.get('naqr_bullying_actors'):
+                bullying_details.append(f"Pelaku: {latest_result['naqr_bullying_actors']}")
+            if latest_result.get('naqr_bullying_perpetrators_detail'):
+                bullying_details.append(f"Jumlah Pelaku: {latest_result['naqr_bullying_perpetrators_detail']}")
+            context_parts.append(f"Detail Perundungan: {'; '.join(bullying_details)}")
+
 
         # K10
         total_k10, category_k10 = profiling_service.get_k10_result([latest_result['k10_total']])

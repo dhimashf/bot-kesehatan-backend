@@ -220,3 +220,8 @@ Secara ringkas, API dikelompokkan menjadi:
 - **`/api/v1/users`**: Pengelolaan profil pengguna, biodata, dan riwayat kuesioner.
 - **`/api/v1/web-chat`**: Endpoint untuk interaksi chat dari antarmuka web.
 - **`/api/v1/internal/chat`**: Endpoint internal yang aman untuk interaksi chat dari bot Telegram.
+
+ALTER TABLE health_results
+ADD COLUMN naqr_bullying_experience INTEGER,
+ADD COLUMN naqr_bullying_actors TEXT NULL,
+ADD COLUMN naqr_bullying_perpetrators_detail TEXT NULL;
