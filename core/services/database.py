@@ -309,6 +309,16 @@ class Database:
             logging.error(f"Error deleting health result: {e}")
             return False
 
+    def delete_health_result_by_id_admin(self, result_id: int) -> bool:
+        """Menghapus entri health_result berdasarkan ID-nya. Hanya untuk admin."""
+        query = "DELETE FROM health_results WHERE id = %s"
+        try:
+            rowcount = self.execute_query(query, (result_id,))
+            return rowcount > 0  # True jika 1 baris terhapus
+        except Exception as e:
+            logging.error(f"Admin error deleting health result ID {result_id}: {e}")
+            return False
+
     def update_user_password(self, user_id: int, hashed_password: str) -> bool:
         """PERBAIKAN: Dibuat konsisten menggunakan execute_query."""
         query = "UPDATE users SET hashed_password = %s WHERE id = %s"

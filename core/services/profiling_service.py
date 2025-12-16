@@ -31,7 +31,10 @@ BIODATA_OPTIONS = {
         ("D3 Keperawatan", "D3 Keperawatan"),
         ("Ners", "Ners"),
         ("Magister Keperawatan", "Magister Keperawatan"),
-        ("Ners Spesialis", "Ners Spesialis")
+        ("Ners Spesialis", "Ners Spesialis"),
+        ("S1 Profesi Kebidanan", "S1 Profesi Kebidanan"),
+        ("S1 Kebidanan", "S1 Kebidanan"),
+        ("S1 Keperawatan", "S1 Keperawatan")
     ],
     "status_pegawai": [
         ("ASN", "ASN"),

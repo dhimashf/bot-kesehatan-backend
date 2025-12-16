@@ -11,6 +11,10 @@ class Pendidikan(str, Enum):
     NERS = "Ners"
     MAGISTER = "Magister Keperawatan"
     SPESIALIS = "Ners Spesialis"
+    S1_PROFESI_KEBIDANAN = "S1 Profesi Kebidanan"
+    S1_KEBIDANAN = "S1 Kebidanan"
+    S1_KEPERAWATAN = "S1 Keperawatan"
+
 
 class StatusPegawai(str, Enum):
     ASN = "ASN"

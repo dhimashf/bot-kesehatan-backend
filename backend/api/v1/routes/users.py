@@ -180,12 +180,24 @@ def get_questionnaire_data(q_type: str, current_user: dict = Depends(web_auth_se
 @router.post("/profile/results", response_model=HealthResultSummary)
 def submit_health_results(
     payload: HealthResultPayload,
-    current_user: dict = Depends(web_auth_service.get_current_active_user)
+    current_user: dict = Depends(web_auth_service.get_current_active_user),
+    db: web_auth_service.Database = Depends(web_auth_service.get_db)
 ):
     """
     Receive questionnaire scores, process them, save to DB, and return a summary.
+    SECURITY: Ensures that the user has completed their biodata first.
     """
     user_id = current_user.get("id")
+
+    # --- SECURITY CHECK ---
+    # Verifikasi bahwa pengguna telah melengkapi biodata sebelum mengirimkan hasil.
+    # Ini menutup celah di mana pengguna yang sudah login dapat langsung "menembak" API ini.
+    profile_status = user_service.check_user_profile_status(db, user_id)
+    if not profile_status.get('biodata_completed'):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Anda harus melengkapi biodata terlebih dahulu sebelum mengirimkan hasil kuesioner."
+        )
 
     # Process MBI scores
     mbi_result = profiling_service.get_mbi_result(payload.mbi_scores)
@@ -263,6 +275,22 @@ def delete_health_result(
     if not success:
         raise HTTPException(status_code=404, detail="Result not found or you do not have permission to delete it.")
     return
+
+@router.delete("/admin/health-results/{result_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Admin"])
+def delete_health_result_admin(
+    result_id: int,
+    admin_user: dict = Depends(web_auth_service.get_current_admin_user),
+    db: web_auth_service.Database = Depends(web_auth_service.get_db)
+):
+    """
+    (Admin only) Menghapus entri health result tertentu berdasarkan ID-nya.
+    Ini tidak memeriksa user_id, memungkinkan admin menghapus riwayat apapun.
+    """
+    success = db.delete_health_result_by_id_admin(result_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Health result with ID {result_id} not found.")
+    return
+
 
 # --- Admin Routes ---
 
