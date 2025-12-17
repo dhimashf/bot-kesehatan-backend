@@ -1,8 +1,11 @@
 from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel
 from backend.services import google_auth_service, web_auth_service, user_service
 from core.services.database import Database
 from common.config.settings import settings
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 router = APIRouter()
 
@@ -51,6 +54,58 @@ async def auth_google_callback(request: Request, db: Database = Depends(web_auth
 
     frontend_redirect_url = f"{redirect_url_base}?token={jwt_token}"
     return RedirectResponse(url=frontend_redirect_url)
+
+class TokenSignInRequest(BaseModel):
+    idToken: str # Cukup terima idToken dari mobile
+
+@router.post("/token-signin")
+async def token_signin(
+    request_body: TokenSignInRequest, 
+    db: Database = Depends(web_auth_service.get_db)
+):
+    """
+    Endpoint untuk login dari mobile (React Native) menggunakan idToken dari Google.
+    """
+    try:
+        # Verifikasi idToken yang diterima dari aplikasi mobile
+        id_info = id_token.verify_oauth2_token(
+            request_body.idToken, # Gunakan idToken dari request body
+            google_requests.Request(),
+            settings.GOOGLE_CLIENT_ID # Gunakan Client ID khusus untuk mobile
+        )
+
+        # Pastikan token dikeluarkan oleh Google
+        if id_info['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
+            raise ValueError('Wrong issuer.')
+
+        # Ambil informasi pengguna dari token yang sudah diverifikasi
+        user_info = {
+            "email": id_info["email"],
+            "name": id_info.get("name"),
+            "given_name": id_info.get("given_name"),
+            "family_name": id_info.get("family_name"),
+            "picture": id_info.get("picture"),
+        }
+
+        # Gunakan kembali logika yang sudah ada untuk memproses login/register
+        processed_data = google_auth_service.process_google_login(db, user_info)
+        
+        # Sesuai permintaan klien mobile, sertakan juga objek user
+       
+        user_data = dict(processed_data["user"]).copy()
+        # Tambahkan kunci 'photo' ke dictionary yang sudah disalin.
+        user_data['photo'] = user_info.get("picture")
+        # SOLUSI: Tambahkan juga kunci 'name' dari info Google.
+        user_data['name'] = user_info.get("name")
+        
+        # PENTING: Hapus hashed_password dari respons untuk keamanan.
+        user_data.pop("hashed_password", None)
+
+        return {"access_token": processed_data["access_token"], "token_type": "bearer", "user": user_data}
+
+    except ValueError as e:
+        # Jika token tidak valid
+        raise HTTPException(status_code=401, detail=f"Invalid Google token: {e}")
 
 @router.get("/me")
 async def get_google_user_me(current_user: dict = Depends(web_auth_service.get_current_active_user)):

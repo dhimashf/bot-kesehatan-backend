@@ -75,18 +75,35 @@ Endpoint ini menangani alur otentikasi menggunakan akun Google.
         { "id": 1, "email": "user.google@example.com", "role": "user" }
         ```
 
-### 3. Pengguna & Profil (`/api/v1/users`)
-Mengelola data pengguna, profil (biodata), dan hasil kuesioner. Semua endpoint di sini **membutuhkan otentikasi** (Header `Authorization: Bearer <token>`).
-
--   **`GET /api/v1/users/me`**
-    -   **Kegunaan:** Mendapatkan informasi dasar (ID dan email) dari pengguna yang sedang login.
+-   **`POST /api/v1/auth/google/token-signin`**
+    -   **Kegunaan:** Mengautentikasi pengguna dari klien mobile (seperti React Native) yang sudah mendapatkan `idToken` dari Google Sign-In.
+    -   **Body (JSON):** `{"idToken": "id_token_yang_didapat_dari_google_signin"}`
     -   **Contoh Output (JSON):**
         ```json
         {
-          "id": 1,
-          "email": "user@example.com"
+          "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+          "token_type": "bearer",
+          "user": {
+            "id": 1,
+            "name": "Nama Pengguna",
+            "email": "user@example.com",
+            "photo": "https://url.to/photo.jpg",
+            "role": "user"
+          }
         }
         ```
+
+### 4. Pengguna & Profil (`/api/v1/users`)
+Mengelola data pengguna, profil (biodata), dan hasil kuesioner. Semua endpoint di sini **membutuhkan otentikasi** (Header `Authorization: Bearer <token>`).
+
+-   **`GET /api/v1/users/me`**
+    -   **Kegunaan:** Sama seperti `/api/v1/users/me`, mendapatkan informasi pengguna yang sedang login. Endpoint ini berguna untuk memverifikasi token yang didapat dari alur Google Auth.
+    -   **Otentikasi:** Membutuhkan Header `Authorization: Bearer <token>`.
+    -   **Contoh Output (JSON):**
+        ```json
+        { "id": 1, "email": "user.google@example.com", "role": "user" }
+        ```
+
 -   **`GET /api/v1/users/profile/status`**
     -   **Kegunaan:** Memeriksa apakah pengguna sudah melengkapi biodata dan kuesioner.
     -   **Contoh Output (JSON):**
@@ -130,6 +147,9 @@ Mengelola data pengguna, profil (biodata), dan hasil kuesioner. Semua endpoint d
               "naqr_pekerjaan_total": 12,
               "naqr_intimidasi_total": 5,
               "k10_total": 18,
+              "naqr_bullying_experience": 2,
+              "naqr_bullying_actors": "Rekan kerja",
+              "naqr_bullying_perpetrators_detail": "1 laki-laki",
               "created_at": "2023-10-28T12:00:00",
               "who5_category": "Tidak ada gejala Depresi",
               "gad7_category": "Kecemasan Minimal",
@@ -148,22 +168,51 @@ Mengelola data pengguna, profil (biodata), dan hasil kuesioner. Semua endpoint d
 -   **`POST /api/v1/users/profile`**
     -   **Kegunaan:** Membuat atau memperbarui profil identitas (biodata) pengguna.
     -   **Body (JSON):** Menggunakan struktur yang sama dengan objek `biodata` pada output `GET /api/v1/users/profile/full`.
+    ```json
+        {
+          "email": "user@example.com",
+          "inisial": "DH",
+          "no_wa": "081234567890",
+          "usia": 30,
+          "jenis_kelamin": "Laki-laki",
+          "pendidikan": "Ners",
+          "lama_bekerja": 5,
+          "status_pegawai": "ASN",
+          "jabatan": "Perawat Pelaksana",
+          "jabatan_lain": null,
+          "unit_ruangan": "IGD",
+          "status_perkawinan": "Menikah",
+          "status_kehamilan": "Tidak",
+          "jumlah_anak": 1
+        }
+
     -   **Contoh Output (JSON):** `{"message": "Profile saved successfully"}`
+
 -   **`GET /api/v1/users/questionnaire/{q_type}`**
     -   **Kegunaan:** Mendapatkan daftar pertanyaan dan opsi jawaban untuk tipe kuesioner tertentu (`who5`, `gad7`, `mbi`, `naqr`, `k10`).
+    -   **Catatan:** Endpoint ini juga mendukung `q_type=naqr_perundungan` dengan format output yang berbeda (lihat contoh kedua).
     -   **Contoh Output (JSON) untuk `q_type=who5`:**
         ```json
         {
           "type": "who5",
           "questions": [
-            "14. Saya merasa ceria dan bersemangat",
-            "15. Saya merasa tenang dan rileks",
-            "..."
+            { "text": "14. Saya merasa ceria dan bersemangat" },
+            { "text": "15. Saya merasa tenang dan rileks" }
           ],
           "options": [
-            { "text": "Setiap Saat", "score": 6 },
-            { "text": "Sering Sekali", "score": 5 },
-            "..."
+            { "text": "Setiap Saat", "score": 5 },
+            { "text": "Sering Sekali", "score": 4 }
+          ]
+        }
+        ```
+    -   **Contoh Output (JSON) untuk `q_type=naqr_perundungan`:**
+        ```json
+        {
+          "type": "naqr_perundungan",
+          "questions": [
+            { "id": "q80", "type": "multiple_choice", "text": "Apakah Anda pernah mengalami perundungan di tempat kerja?", "options": [...] },
+            { "id": "q81", "type": "text_input", "text": "Siapa saja yang melakukan perundungan tersebut?" },
+            { "id": "q82", "type": "text_input", "text": "Jelaskan lebih detail mengenai pelaku perundungan." }
           ]
         }
         ```
@@ -176,12 +225,12 @@ Mengelola data pengguna, profil (biodata), dan hasil kuesioner. Semua endpoint d
           "gad7_total": 8,
           "k10_total": 25,
           "mbi_scores": [1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2],
-          "naqr_pribadi_total": 10,
-          "naqr_pekerjaan_total": 12,
-          "naqr_intimidasi_total": 5
+          "naqr_scores": [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2],
+          "naqr_bullying_experience": 2,
+          "naqr_bullying_actors": "Rekan kerja",
+          "naqr_bullying_perpetrators_detail": "1 laki-laki"
         }
         ```
-    -   **Catatan:** Untuk MBI, kirimkan array berisi 22 skor mentah. Untuk kuesioner lain, kirimkan total skornya.
     -   **Contoh Output (JSON):**
         ```json
         {
@@ -192,10 +241,13 @@ Mengelola data pengguna, profil (biodata), dan hasil kuesioner. Semua endpoint d
             "MBI-EE": { "score": 25, "interpretation": "Tinggi" },
             "MBI-CYN": { "score": 10, "interpretation": "Tinggi" },
             "MBI-PA": { "score": 10, "interpretation": "Rendah" },
-            "NAQ-R Pribadi": { "score": 10, "interpretation": "N/A" },
-            "NAQ-R Pekerjaan": { "score": 12, "interpretation": "N/A" },
-            "NAQ-R Intimidasi": { "score": 5, "interpretation": "N/A" },
-            "K-10": { "score": 25, "interpretation": "Distres tinggi" }
+            "NAQ-R Total": { "score": 44, "interpretation": "Perundungan Sedang" },
+            "K-10": { "score": 25, "interpretation": "Distres tinggi" },
+            "Detail Pengalaman Perundungan": {
+              "Pengalaman": "Ya, tapi jarang",
+              "Pelaku": "Rekan kerja",
+              "Detail Pelaku": "1 laki-laki"
+            }
           }
         }
         ```
@@ -205,7 +257,157 @@ Mengelola data pengguna, profil (biodata), dan hasil kuesioner. Semua endpoint d
 
 ### 4. Admin (`/api/v1/users/admin`)
 Endpoint ini hanya dapat diakses oleh pengguna dengan peran `admin`.
+-   **`GET /api/v1/users/admin/all-users`**
+    -   **Kegunaan:** Mendapatkan daftar semua pengguna yang terdaftar di sistem.
+    -   **Otentikasi:** Membutuhkan token admin.
+    -   **Contoh Output (JSON):**
+        ```json
+        [
+          {
+            "id": 1,
+            "email": "user1@example.com",
+            "role": "user"
+          },
+          {
+            "id": 2,
+            "email": "admin@example.com",
+            "role": "admin"
+          }
+        ]
+        ```
 
+-   **`GET /api/v1/users/admin/all-profiles`**
+    -   **Kegunaan:** Mendapatkan semua data profil (biodata) dari seluruh pengguna.
+    -   **Otentikasi:** Membutuhkan token admin.
+    -   **Contoh Output (JSON):**
+        ```json
+        [
+          {
+            "user_id": 1,
+            "email": "user1@example.com",
+            "inisial": "U1",
+            "usia": 28,
+            "jenis_kelamin": "Perempuan",
+            "pendidikan": "S1 Keperawatan"
+          },
+          {
+            "user_id": 2,
+            "email": "user2@example.com",
+            "inisial": "U2",
+            "usia": 35,
+            "jenis_kelamin": "Laki-laki",
+            "pendidikan": "Ners"
+          }
+        ]
+        ```
+
+-   **`GET /api/v1/users/admin/all-health-results`**
+    -   **Kegunaan:** Mengambil seluruh riwayat hasil kuesioner dari semua pengguna.
+    -   **Otentikasi:** Membutuhkan token admin.
+    -   **Contoh Output (JSON):**
+        ```json
+        [
+          {
+            "id": 1,
+            "user_id": 1,
+            "who5_total": 18,
+            "gad7_total": 7,
+            "k10_total": 22,
+            "created_at": "2023-10-01T10:00:00"
+          },
+          {
+            "id": 2,
+            "user_id": 2,
+            "who5_total": 22,
+            "gad7_total": 3,
+            "k10_total": 15,
+            "created_at": "2023-10-02T11:00:00"
+          }
+        ]
+        ```
+
+-   **`GET /api/v1/users/admin/all-results-with-biodata`**
+    -   **Kegunaan:** Mengambil data gabungan dari semua pengguna, termasuk status kelengkapan profil, biodata, dan riwayat kuesioner. Sangat berguna untuk dashboard admin.
+    -   **Otentikasi:** Membutuhkan token admin.
+    -   **Contoh Output (JSON):**
+        ```json
+        [
+          {
+            "biodata_completed": true,
+            "health_results_completed": true,
+            "biodata": {
+              "user_id": 1,
+              "email": "user1@example.com",
+              "role": "user",
+              "inisial": "U1",
+              "usia": 28,
+              "jenis_kelamin": "Perempuan",
+              "pendidikan": "S1 Keperawatan"
+            },
+            "health_results": [
+              {
+                "id": 101,
+                "who5_total": 20,
+                "gad7_total": 5,
+                "k10_total": 18,
+                "created_at": "2023-10-20T10:00:00"
+              }
+            ]
+          },
+          {
+            "biodata_completed": true,
+            "health_results_completed": false,
+            "biodata": {
+              "user_id": 2,
+              "email": "user2@example.com",
+              "role": "user",
+              "inisial": "U2",
+              "usia": 35,
+              "jenis_kelamin": "Laki-laki",
+              "pendidikan": "Ners"
+            },
+            "health_results": []
+          }
+        ]
+        ```
+
+-   **`GET /api/v1/users/admin/profile/{user_id}`**
+    -   **Kegunaan:** Mendapatkan profil lengkap (biodata dan riwayat kuesioner) dari satu pengguna spesifik berdasarkan ID.
+    -   **Otentikasi:** Membutuhkan token admin.
+    -   **Contoh Output (JSON):**
+        ```json
+        {
+          "biodata": {
+            "email": "user1@example.com",
+            "inisial": "U1",
+            "usia": 28,
+            "jenis_kelamin": "Perempuan"
+          },
+          "health_results": [
+            { "id": 101, "who5_total": 20, "created_at": "2023-10-20T10:00:00" },
+            { "id": 105, "who5_total": 22, "created_at": "2023-11-15T14:30:00" }
+          ],
+          "biodata_completed": true,
+          "health_results_completed": true
+        }
+        ```
+
+-   **`GET /api/v1/users/admin/health-results/{user_id}`**
+    -   **Kegunaan:** Mendapatkan semua riwayat hasil kuesioner dari satu pengguna spesifik berdasarkan ID.
+    -   **Otentikasi:** Membutuhkan token admin.
+    -   **Contoh Output (JSON):**
+        ```json
+        [
+          {
+            "id": 1,
+            "user_id": 1,
+            "who5_total": 18,
+            "gad7_total": 7,
+            "k10_total": 22,
+            "created_at": "2023-10-01T10:00:00"
+          }
+        ]
+        ```
 ### 4. Chat
 Endpoint untuk interaksi dengan chatbot.
 
