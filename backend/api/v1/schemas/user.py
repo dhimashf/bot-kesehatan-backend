@@ -60,6 +60,16 @@ class HealthResultBase(BaseModel):
     naqr_bullying_actors: Optional[str] = None
     naqr_bullying_perpetrators_detail: Optional[str] = None
     created_at: datetime
+    # Tambahkan field kategori dan total yang dihitung di backend
+    who5_category: Optional[str] = None
+    gad7_category: Optional[str] = None
+    k10_category: Optional[str] = None
+    mbi_emosional_category: Optional[str] = None
+    mbi_sinis_category: Optional[str] = None
+    mbi_pencapaian_category: Optional[str] = None
+    mbi_total: Optional[int] = None
+    naqr_total: Optional[int] = None
+    naqr_category: Optional[str] = None
 
 class FullUserProfileResponse(BaseModel):
     """Skema untuk respons profil lengkap pengguna."""
