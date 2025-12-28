@@ -4,6 +4,7 @@ import sys
 import httpx
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, BotCommand
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes, ConversationHandler, ExtBot, Defaults
+import re
 
 from common.config.settings import settings
 from core.services.openrouter_service import openrouter_service
@@ -118,9 +119,27 @@ class PsikoBot:
         email = update.message.text.strip()
         message = update.effective_message
 
+        # Validasi format email yang mendukung subdomain (contoh: students.uin-suska.ac.id)
+        # Regex ini mengizinkan huruf, angka, titik, underscore, plus, dan minus.
+        if not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
+            await message.reply_text("⚠️ Format email tidak valid. Mohon masukkan email yang benar (contoh: nama@gmail.com).")
+            return State.REGISTER_EMAIL
+
         try:
             db = Database()
             try:
+                # Cek apakah email sudah ada sebelum membuat akun
+                existing_user = web_auth_service.find_user_by_email(db, email=email)
+                if existing_user:
+                    await message.reply_text(f"Email '{email}' sudah terdaftar. Silakan login.")
+                    keyboard = [
+                        [InlineKeyboardButton("Sudah punya akun (Login)", callback_data='login')],
+                        [InlineKeyboardButton("Gunakan Email Lain", callback_data='register')]
+                    ]
+                    reply_markup = InlineKeyboardMarkup(keyboard)
+                    await message.reply_text("Silakan pilih opsi:", reply_markup=reply_markup)
+                    return State.ASK_ACCOUNT
+
                 # Coba buat akun pengguna baru tanpa password
                 new_user = user_service.create_user_from_telegram(db, email)
             finally:
@@ -255,6 +274,12 @@ class PsikoBot:
         elif update.message:
             user_input = update.message.text.strip()
 
+        # Validasi input biodata sebelum disimpan ke state
+        validation_error = self.validate_biodata_input(field, user_input)
+        if validation_error:
+            await message.reply_text(f"⚠️ {validation_error}\n\nSilakan masukkan kembali:")
+            return current_state
+
         # Ambil profile dan pastikan 'biodata' di dalamnya ada
         profile = self.get_user_profile(context)
         profile['biodata'][field] = user_input
@@ -280,6 +305,27 @@ class PsikoBot:
             return await self.save_biodata(update, context)
 
         return await self.ask_next_biodata(message, context, next_idx)
+
+    def validate_biodata_input(self, field: str, value: str) -> str | None:
+        """Memvalidasi input biodata berdasarkan field-nya."""
+        if field == 'usia':
+            if not value.isdigit():
+                return "Usia harus berupa angka saja (contoh: 25)."
+            val = int(value)
+            if not (18 <= val <= 65):
+                return "Usia harus antara 18 dan 65 tahun."
+        elif field == 'no_wa':
+            # Bersihkan karakter pemisah umum
+            clean_val = value.replace("-", "").replace(" ", "")
+            if not re.match(r"^(08|\+628|628)\d{8,15}$", clean_val):
+                return "Format nomor WhatsApp tidak valid. Gunakan awalan 08, 628, atau +628 (Min 10 digit)."
+        elif field == 'lama_bekerja':
+            if not value.isdigit():
+                return "Lama bekerja harus berupa angka (dalam tahun)."
+        elif field == 'jumlah_anak':
+            if not value.isdigit():
+                return "Jumlah anak harus berupa angka (ketik '0' jika belum ada)."
+        return None
 
     async def ask_next_biodata(self, message, context: ContextTypes.DEFAULT_TYPE, next_idx: int):
         """Mengajukan pertanyaan biodata berikutnya."""
